@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from typing import List
 from app.models import Exercise, ExerciseResponse, ExerciseEditRequest
-from app.repository import get_all_exercises, get_exercise_by_id, create_exercise, edit_exercise
+from app.repository import get_all_exercises, get_exercise_by_id, create_exercise, edit_exercise, delete_exercise
 
 app = FastAPI(
     title='Workout Tracker',
