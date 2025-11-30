@@ -4,39 +4,47 @@ __pycache__/
 *$py.class
 *.so
 .Python
+*.egg-info/
+dist/
+build/
+*.egg
 
 # Virtual environments
-.venv/
 venv/
-ENV/
 env/
+ENV/
+.venv
 
-# IDEs
-.idea/
+# IDE
 .vscode/
+.idea/
 *.swp
 *.swo
+*~
 
 # Testing
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Database
+# Database (will be mounted as volume)
 *.db
-*.sqlite
-*.sqlite3
 workout_tracker.db
-data/
 
-# UV
-.uv/
-uv.lock
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+sessions/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
 
 # OS
 .DS_Store
 Thumbs.db
-/sessions/session-01.md
-/sessions/session-02.md
-/sessions/session-03.md
-/sessions/session-04.md
+

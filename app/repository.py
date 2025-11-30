@@ -3,7 +3,11 @@ from typing import List, Dict, Optional
 from contextlib import contextmanager
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'workout_tracker.db')
+# Use environment variable for DB path, default to data directory
+DB_PATH = os.getenv('DB_PATH', os.path.join(os.path.dirname(__file__), '..', 'data', 'workout_tracker.db'))
+
+# Ensure the data directory exists
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 @contextmanager
 def get_db_connection():
