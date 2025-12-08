@@ -25,7 +25,7 @@ st.set_page_config(
 
 st.title("Workout Tracker Dashboard")
 st.caption(
-    "FastAPI + SQLite backend | View, create, and manage your workout exercises"
+    "View, create, and manage your workout exercises"
 )
 
 

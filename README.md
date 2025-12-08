@@ -99,6 +99,7 @@ cp .env.example .env
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Welcome message |
+| GET | `/health` | Health check with DB status |
 | GET | `/exercises` | List all exercises |
 | GET | `/exercises/{id}` | Get exercise by ID |
 | POST | `/exercises` | Create new exercise |

@@ -47,7 +47,8 @@ class DatabaseSettings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix='DB_',
-        case_sensitive=False
+        case_sensitive=False,
+        extra='ignore'
     )
 
 
@@ -194,10 +195,28 @@ def get_settings() -> AppSettings:
     """Get the application settings singleton.
 
     This function returns a cached settings instance to avoid repeated
-    file reads and environment variable lookups.
+    file reads and environment variable lookups. The settings are loaded
+    from environment variables with optional .env file support.
+
+    Settings hierarchy (lowest to highest priority):
+        1. Default values in Pydantic models
+        2. .env file (if exists in working directory)
+        3. Environment variables
 
     Returns:
-        AppSettings: The application settings instance
+        AppSettings: The application settings instance containing:
+            - db: DatabaseSettings (path, timeout, pool_size, echo_sql)
+            - api: APISettings (host, port, debug, workers, title, version)
+            - log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            - cors_origins: CORS allowed origins
+            - enable_metrics: Metrics collection flag
+
+    Example:
+        >>> settings = get_settings()
+        >>> print(settings.api.port)
+        8000
+        >>> print(settings.db.path)
+        PosixPath('/app/data/workout_tracker.db')
     """
     global _settings
     if _settings is None:

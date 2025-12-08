@@ -2,14 +2,17 @@
 
 This module defines the REST API endpoints for managing workout exercises.
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from typing import List
+from datetime import datetime, timezone
 import logging
+import time
+import uuid
 
 from services.api.src.database.config import get_settings
-from services.api.src.database.models import Exercise, ExerciseResponse, ExerciseEditRequest
+from services.api.src.database.models import Exercise, ExerciseResponse, ExerciseEditRequest, HealthResponse
 from services.api.src.database.repository import (
     get_all_exercises,
     get_exercise_by_id,
@@ -68,18 +71,88 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    """Middleware to log all incoming requests with timing and trace ID.
+
+    Args:
+        request (Request): The incoming HTTP request.
+        call_next: The next middleware/route handler.
+
+    Returns:
+        Response: The HTTP response with added headers.
+    """
+    # Generate or use existing trace ID
+    trace_id = request.headers.get("X-Trace-Id", str(uuid.uuid4())[:8])
+    start_time = time.time()
+
+    # Log request
+    logger.info(
+        f"[{trace_id}] {request.method} {request.url.path} - Started"
+    )
+
+    # Process request
+    response = await call_next(request)
+
+    # Calculate duration
+    duration_ms = (time.time() - start_time) * 1000
+
+    # Log response
+    logger.info(
+        f"[{trace_id}] {request.method} {request.url.path} - "
+        f"Status: {response.status_code} - Duration: {duration_ms:.2f}ms"
+    )
+
+    # Add trace headers to response
+    response.headers["X-Request-Id"] = trace_id
+    response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
+
+    return response
+
+
 @app.get('/')
 def read_root() -> dict[str, str]:
     """Get the root endpoint welcome message.
 
     Returns:
-        dict: A dictionary containing a welcome message and configuration info.
+        dict[str, str]: A dictionary containing a welcome message and configuration info.
     """
     return {
         'message': 'Welcome to the Workout Tracker API',
         'version': settings.api.version,
         'docs': settings.api.docs_url
     }
+
+
+@app.get('/health', response_model=HealthResponse, tags=["Health"])
+def health_check() -> HealthResponse:
+    """Health check endpoint for monitoring and container orchestration.
+
+    Returns:
+        HealthResponse: Health status including service info and database connectivity.
+    """
+    db_healthy = True
+    db_message = "Connected"
+
+    try:
+        # Quick database connectivity check
+        exercises = get_all_exercises()
+        exercise_count = len(exercises) if exercises else 0
+    except Exception as e:
+        db_healthy = False
+        db_message = f"Error: {str(e)}"
+        exercise_count = 0
+
+    return HealthResponse(
+        status="healthy" if db_healthy else "unhealthy",
+        version=settings.api.version,
+        timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        database={
+            "status": "connected" if db_healthy else "disconnected",
+            "message": db_message,
+            "exercise_count": exercise_count
+        }
+    )
 
 
 @app.get('/exercises', response_model=List[ExerciseResponse])

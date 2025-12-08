@@ -7,7 +7,6 @@ import os
 from typing import Generator
 from fastapi.testclient import TestClient
 from services.api.src.api import app
-from services.api.src.database import repository
 
 
 @pytest.fixture(scope='function')
@@ -81,10 +80,19 @@ def test_read_exercise_by_id(client: TestClient) -> None:
     Args:
         client (TestClient): The test client fixture.
     """
-    response = client.get('/exercises/1')
+    # First create an exercise to ensure one exists
+    new_exercise = {
+        'name': 'Test Exercise',
+        'sets': 3,
+        'reps': 10
+    }
+    create_response = client.post('/exercises', json=new_exercise)
+    exercise_id = create_response.json()['id']
+
+    response = client.get(f'/exercises/{exercise_id}')
     assert response.status_code == 200
     data = response.json()
-    assert data['id'] == 1
+    assert data['id'] == exercise_id
     assert 'name' in data
 
 
@@ -142,11 +150,20 @@ def test_edit_exercise(client: TestClient) -> None:
     Args:
         client (TestClient): The test client fixture.
     """
+    # First create an exercise to update
+    new_exercise = {
+        'name': 'Exercise to Update',
+        'sets': 3,
+        'reps': 10
+    }
+    create_response = client.post('/exercises', json=new_exercise)
+    exercise_id = create_response.json()['id']
+
     update_data = {
         'sets': 4,
         'reps': 12
     }
-    response = client.patch('/exercises/1', json=update_data)
+    response = client.patch(f'/exercises/{exercise_id}', json=update_data)
     assert response.status_code == 200
     data = response.json()
     assert data['sets'] == 4
@@ -193,4 +210,67 @@ def test_delete_exercise_not_found(client: TestClient) -> None:
     """
     response = client.delete('/exercises/9999')
     assert response.status_code == 404
+
+
+def test_health_check(client: TestClient) -> None:
+    """Test the health check endpoint.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    response = client.get('/health')
+    assert response.status_code == 200
+    data = response.json()
+    assert data['status'] == 'healthy'
+    assert 'version' in data
+    assert 'timestamp' in data
+    assert 'database' in data
+    assert data['database']['status'] == 'connected'
+
+
+def test_create_exercise_invalid_name_empty(client: TestClient) -> None:
+    """Test creating an exercise with empty name fails validation.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    invalid_exercise = {
+        'name': '',
+        'sets': 3,
+        'reps': 10
+    }
+    response = client.post('/exercises', json=invalid_exercise)
+    assert response.status_code == 422
+
+
+def test_create_exercise_invalid_sets_zero(client: TestClient) -> None:
+    """Test creating an exercise with zero sets fails validation.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    invalid_exercise = {
+        'name': 'Test Exercise',
+        'sets': 0,
+        'reps': 10
+    }
+    response = client.post('/exercises', json=invalid_exercise)
+    assert response.status_code == 422
+
+
+def test_create_exercise_invalid_negative_weight(client: TestClient) -> None:
+    """Test creating an exercise with negative weight fails validation.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    invalid_exercise = {
+        'name': 'Test Exercise',
+        'sets': 3,
+        'reps': 10,
+        'weight': -5.0
+    }
+    response = client.post('/exercises', json=invalid_exercise)
+    assert response.status_code == 422
+
 

@@ -3,7 +3,7 @@
 Provides CRUD operations for exercises using SQLite.
 """
 import sqlite3
-from typing import List, Dict, Optional, Generator
+from typing import List, Dict, Optional, Generator, Any
 from contextlib import contextmanager
 
 from services.api.src.database.config import get_settings
@@ -150,7 +150,7 @@ def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = N
 
 def edit_exercise(exercise_id: int, name: Optional[str] = None, sets: Optional[int] = None,
                   reps: Optional[int] = None, weight: Optional[float] = None,
-                  update_weight: bool = False) -> Optional[Dict[str, any]]:
+                  update_weight: bool = False) -> Optional[Dict[str, Any]]:
     """Update any attributes of an exercise in the database.
 
     Only the provided fields will be updated; None values are ignored except for weight
