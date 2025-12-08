@@ -1,6 +1,6 @@
 import pytest
-import os
 from pathlib import Path
+from _pytest.monkeypatch import MonkeyPatch
 from app.config import (
     DatabaseSettings,
     APISettings,
@@ -10,7 +10,7 @@ from app.config import (
 )
 
 
-def test_database_settings_defaults():
+def test_database_settings_defaults() -> None:
     """Verify DatabaseSettings initializes with correct default values.
 
     Tests that a DatabaseSettings instance created without arguments uses
@@ -30,7 +30,7 @@ def test_database_settings_defaults():
     assert db_settings.timeout == 5.0
 
 
-def test_database_settings_from_env(monkeypatch):
+def test_database_settings_from_env(monkeypatch: MonkeyPatch) -> None:
     """Verify DatabaseSettings loads correctly from environment variables.
 
     Tests that DatabaseSettings properly reads and converts environment
@@ -63,7 +63,7 @@ def test_database_settings_from_env(monkeypatch):
     assert db_settings.timeout == 15.0
 
 
-def test_api_settings_defaults():
+def test_api_settings_defaults() -> None:
     """Verify APISettings initializes with correct default values.
 
     Tests that an APISettings instance created without arguments uses the
@@ -87,7 +87,7 @@ def test_api_settings_defaults():
     assert api_settings.title == "Workout Tracker"
 
 
-def test_api_settings_from_env(monkeypatch):
+def test_api_settings_from_env(monkeypatch: MonkeyPatch) -> None:
     """Verify APISettings loads correctly from environment variables.
 
     Tests that APISettings properly reads and converts environment variables
@@ -119,7 +119,7 @@ def test_api_settings_from_env(monkeypatch):
     assert api_settings.workers == 4
 
 
-def test_api_settings_validation():
+def test_api_settings_validation() -> None:
     """Verify APISettings validates port numbers within valid range.
 
     Tests that Pydantic validation properly enforces port number constraints,
@@ -146,7 +146,7 @@ def test_api_settings_validation():
     assert api_settings.port == 8080
 
 
-def test_app_settings_defaults():
+def test_app_settings_defaults() -> None:
     """Verify AppSettings initializes with correct default values.
 
     Tests that an AppSettings instance created without arguments uses the
@@ -165,7 +165,7 @@ def test_app_settings_defaults():
 
 
 
-def test_cors_origins_list_parsing():
+def test_cors_origins_list_parsing() -> None:
     """Verify CORS origins string is correctly parsed into a list.
 
     Tests the cors_origins_list property that converts the comma-separated
@@ -194,7 +194,7 @@ def test_cors_origins_list_parsing():
     assert settings3.cors_origins_list == ["https://a.com", "https://b.com", "https://c.com"]
 
 
-def test_nested_settings():
+def test_nested_settings() -> None:
     """Verify AppSettings contains properly nested configuration objects.
 
     Tests that AppSettings correctly initializes and provides access to
@@ -219,7 +219,7 @@ def test_nested_settings():
     assert hasattr(app_settings.api, 'debug')
 
 
-def test_nested_env_variable_override(monkeypatch):
+def test_nested_env_variable_override(monkeypatch: MonkeyPatch) -> None:
     """Verify nested settings can be overridden via environment variables.
 
     Tests that environment variables with appropriate prefixes (DB_, API_)
@@ -244,7 +244,7 @@ def test_nested_env_variable_override(monkeypatch):
     assert app_settings.api.port == 9999
 
 
-def test_get_settings_singleton():
+def test_get_settings_singleton() -> None:
     """Verify get_settings returns the same instance on multiple calls.
 
     Tests that the get_settings function implements the singleton pattern,
@@ -262,7 +262,7 @@ def test_get_settings_singleton():
     assert settings1 is settings2
 
 
-def test_reload_settings(monkeypatch):
+def test_reload_settings(monkeypatch: MonkeyPatch) -> None:
     """Verify reload_settings forces re-initialization of the settings.
 
     Tests that the reload_settings function clears the cached singleton
@@ -299,7 +299,7 @@ def test_reload_settings(monkeypatch):
     # This tests the reload mechanism exists
 
 
-def test_database_path_resolution():
+def test_database_path_resolution() -> None:
     """Verify relative database paths are resolved to absolute paths.
 
     Tests that the custom validator for DatabaseSettings.path automatically
@@ -318,31 +318,8 @@ def test_database_path_resolution():
     assert db_settings.path.is_absolute()
 
 
-def test_environment_validation():
-    """Verify environment setting only accepts valid literal values.
 
-    Tests that Pydantic's Literal type validation enforces that only
-    specific environment values are accepted.
-
-    Test Cases:
-        1. Valid: "development", "staging", "production" - should be accepted
-        2. Invalid: "invalid" - should raise ValueError
-
-    Asserts:
-        - All valid environment strings are accepted
-        - Invalid environment strings raise ValueError with validation error
-    """
-    # Valid environments
-    for env in ["development", "staging", "production"]:
-        settings = AppSettings(environment=env)
-        assert settings.environment == env
-
-    # Invalid environment should raise validation error
-    with pytest.raises(ValueError):
-        AppSettings(environment="invalid")
-
-
-def test_log_level_validation():
+def test_log_level_validation() -> None:
     """Verify log_level setting only accepts valid logging levels.
 
     Tests that Pydantic's Literal type validation enforces that only
@@ -366,7 +343,7 @@ def test_log_level_validation():
         AppSettings(log_level="INVALID")
 
 
-def test_ensure_data_directory(tmp_path):
+def test_ensure_data_directory(tmp_path: Path) -> None:
     """Verify ensure_data_directory creates missing database directories.
 
     Tests that the ensure_data_directory method creates the parent directory
@@ -398,7 +375,7 @@ def test_ensure_data_directory(tmp_path):
     assert db_path.parent.is_dir()
 
 
-def test_configuration_documentation():
+def test_configuration_documentation() -> None:
     """Verify all settings have field descriptions for documentation.
 
     Tests that the Pydantic Field() definitions include description parameters
@@ -407,7 +384,7 @@ def test_configuration_documentation():
     Asserts:
         - DatabaseSettings.path has a non-None description
         - APISettings.port has a non-None description
-        - AppSettings.environment has a non-None description
+        - AppSettings.log_level has a non-None description
 
     Note:
         This ensures that the configuration is self-documenting and can be
@@ -420,10 +397,10 @@ def test_configuration_documentation():
     # Check that model schema includes descriptions
     assert db_settings.model_fields['path'].description is not None
     assert api_settings.model_fields['port'].description is not None
-    assert app_settings.model_fields['environment'].description is not None
+    assert app_settings.model_fields['log_level'].description is not None
 
 
-def test_settings_serialization():
+def test_settings_serialization() -> None:
     """Verify settings can be serialized to dictionary format.
 
     Tests that AppSettings instances can be converted to dictionaries using
@@ -441,7 +418,7 @@ def test_settings_serialization():
     settings_dict = settings.model_dump()
 
     assert isinstance(settings_dict, dict)
-    assert 'environment' in settings_dict
+    assert 'log_level' in settings_dict
     assert 'db' in settings_dict
     assert 'api' in settings_dict
 

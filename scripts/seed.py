@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from app.repository import get_db_connection, init_db
 
 
-def seed_database():
+def seed_database() -> None:
     """Seed the database with sample workout exercises.
 
     Initializes the database, clears any existing data, and populates it with

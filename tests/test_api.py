@@ -1,12 +1,13 @@
 import pytest
 import os
+from typing import Generator
 from fastapi.testclient import TestClient
 from app.main import app
 from app import repository
 
 
 @pytest.fixture(scope='function')
-def test_db():
+def test_db() -> Generator[None, None, None]:
     """Create a test database for each test.
 
     This fixture creates an isolated test database for each test function,
@@ -32,7 +33,7 @@ def test_db():
 
 
 @pytest.fixture(scope='function')
-def client(test_db):
+def client(test_db: Generator[None, None, None]) -> TestClient:
     """Create a test client with isolated database.
 
     Args:
@@ -44,7 +45,7 @@ def client(test_db):
     return TestClient(app)
 
 
-def test_read_root(client):
+def test_read_root(client: TestClient) -> None:
     """Test the root endpoint.
 
     Args:
@@ -55,7 +56,7 @@ def test_read_root(client):
     assert response.json() == {'message': 'Welcome to the Workout Tracker API'}
 
 
-def test_read_exercises(client):
+def test_read_exercises(client: TestClient) -> None:
     """Test getting all exercises.
 
     Args:
@@ -72,7 +73,7 @@ def test_read_exercises(client):
     assert 'reps' in data[0]
 
 
-def test_read_exercise_by_id(client):
+def test_read_exercise_by_id(client: TestClient) -> None:
     """Test getting a specific exercise.
 
     Args:
@@ -85,7 +86,7 @@ def test_read_exercise_by_id(client):
     assert 'name' in data
 
 
-def test_read_exercise_not_found(client):
+def test_read_exercise_not_found(client: TestClient) -> None:
     """Test getting a non-existent exercise.
 
     Args:
@@ -96,7 +97,7 @@ def test_read_exercise_not_found(client):
     assert response.json()['detail'] == 'Exercise not found'
 
 
-def test_create_exercise(client):
+def test_create_exercise(client: TestClient) -> None:
     """Test creating a new exercise.
 
     Args:
@@ -118,7 +119,7 @@ def test_create_exercise(client):
     assert 'id' in data
 
 
-def test_create_exercise_validation_error(client):
+def test_create_exercise_validation_error(client: TestClient) -> None:
     """Test creating an exercise with invalid data.
 
     Args:
@@ -133,7 +134,7 @@ def test_create_exercise_validation_error(client):
     assert response.status_code == 422
 
 
-def test_edit_exercise(client):
+def test_edit_exercise(client: TestClient) -> None:
     """Test updating an exercise.
 
     Args:
@@ -150,7 +151,7 @@ def test_edit_exercise(client):
     assert data['reps'] == 12
 
 
-def test_edit_exercise_not_found(client):
+def test_edit_exercise_not_found(client: TestClient) -> None:
     """Test updating a non-existent exercise.
 
     Args:
@@ -161,7 +162,7 @@ def test_edit_exercise_not_found(client):
     assert response.status_code == 404
 
 
-def test_delete_exercise(client):
+def test_delete_exercise(client: TestClient) -> None:
     """Test deleting an exercise.
 
     Args:
@@ -182,7 +183,7 @@ def test_delete_exercise(client):
     assert get_response.status_code == 404
 
 
-def test_delete_exercise_not_found(client):
+def test_delete_exercise_not_found(client: TestClient) -> None:
     """Test deleting a non-existent exercise.
 
     Args:

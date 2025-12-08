@@ -1,11 +1,11 @@
 import sqlite3
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Generator
 from contextlib import contextmanager
 
 from app.config import get_settings
 
 @contextmanager
-def get_db_connection():
+def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
     """Context manager for database connections with automatic commit/rollback.
 
     Yields:
@@ -32,7 +32,7 @@ def get_db_connection():
     finally:
         conn.close()
 
-def init_db():
+def init_db() -> None:
     """Initialize the database with the exercises table and seed data if empty.
 
     Creates the exercises table if it doesn't exist and populates it with
@@ -136,7 +136,7 @@ def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = N
         }
 
 def edit_exercise(exercise_id: int, name: Optional[str] = None, sets: Optional[int] = None,
-                   reps: Optional[int] = None, weight: Optional[float] = None) -> Optional[Dict]:
+                   reps: Optional[int] = None, weight: Optional[float] = None) -> Optional[Dict[str, any]]:
     """Update any attributes of an exercise in the database.
 
     Only the provided fields will be updated; None values are ignored.

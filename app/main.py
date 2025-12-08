@@ -28,7 +28,6 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info(f"Starting Workout Tracker API v{settings.api.version}")
-    logger.info(f"Environment: {settings.environment}")
     logger.info(f"Database path: {settings.db.path}")
     logger.info(f"Debug mode: {settings.api.debug}")
 
@@ -59,7 +58,7 @@ app.add_middleware(
 )
 
 @app.get('/')
-def read_root():
+def read_root() -> dict[str, str]:
     """Get the root endpoint welcome message.
 
     Returns:
@@ -68,12 +67,11 @@ def read_root():
     return {
         'message': 'Welcome to the Workout Tracker API',
         'version': settings.api.version,
-        'environment': settings.environment,
         'docs': settings.api.docs_url
     }
 
 @app.get('/exercises', response_model=List[ExerciseResponse])
-def read_exercises():
+def read_exercises() -> List[ExerciseResponse]:
     """Get all exercises from the database.
 
     Returns:
@@ -82,7 +80,7 @@ def read_exercises():
     return get_all_exercises()
 
 @app.get('/exercises/{exercise_id}', response_model=ExerciseResponse)
-def read_exercise(exercise_id: int):
+def read_exercise(exercise_id: int) -> ExerciseResponse:
     """Get a specific exercise by ID.
 
     Args:
@@ -100,7 +98,7 @@ def read_exercise(exercise_id: int):
     return exercise
 
 @app.post('/exercises', response_model=ExerciseResponse, status_code=201)
-def add_exercise(exercise: Exercise):
+def add_exercise(exercise: Exercise) -> ExerciseResponse:
     """Create a new exercise in the database.
 
     Args:
@@ -118,7 +116,7 @@ def add_exercise(exercise: Exercise):
     return new_exercise
 
 @app.patch('/exercises/{exercise_id}', response_model=ExerciseResponse)
-def edit_exercise_endpoint(exercise_id: int, exercise_edit: ExerciseEditRequest):
+def edit_exercise_endpoint(exercise_id: int, exercise_edit: ExerciseEditRequest) -> ExerciseResponse:
     """Update any attributes of a specific exercise.
 
     Args:
@@ -143,7 +141,7 @@ def edit_exercise_endpoint(exercise_id: int, exercise_edit: ExerciseEditRequest)
     return exercise
 
 @app.delete('/exercises/{exercise_id}', status_code=204)
-def delete_exercise_endpoint(exercise_id: int):
+def delete_exercise_endpoint(exercise_id: int) -> None:
     """Delete a specific exercise from the database.
 
     Args:
