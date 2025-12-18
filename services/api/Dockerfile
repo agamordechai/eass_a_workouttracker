@@ -23,7 +23,8 @@ RUN uv pip install --system \
     "fastapi>=0.115.0" \
     "uvicorn[standard]>=0.32.0" \
     "pydantic>=2.10.0" \
-    "pydantic-settings>=2.0.0"
+    "pydantic-settings>=2.0.0" \
+    "psycopg2-binary>=2.9.0"
 
 # Copy API source code
 COPY services/__init__.py ./services/

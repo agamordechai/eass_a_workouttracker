@@ -1,6 +1,6 @@
 """Database repository for Workout Tracker API.
 
-Provides CRUD operations for exercises using SQLite.
+Provides CRUD operations for exercises using PostgreSQL or SQLite.
 """
 import sqlite3
 from typing import List, Dict, Optional, Generator, Any
@@ -8,34 +8,71 @@ from contextlib import contextmanager
 
 from services.api.src.database.config import get_settings
 
+# Try to import psycopg2 for PostgreSQL support
+try:
+    import psycopg2
+    import psycopg2.extras
+    HAS_PSYCOPG2 = True
+except ImportError:
+    HAS_PSYCOPG2 = False
+
 
 @contextmanager
-def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
+def get_db_connection() -> Generator[Any, None, None]:
     """Context manager for database connections with automatic commit/rollback.
 
+    Supports both PostgreSQL and SQLite based on configuration.
+
     Yields:
-        sqlite3.Connection: A database connection with row_factory set to sqlite3.Row.
+        Connection: A database connection.
             The connection automatically commits on success or rolls back on exception.
     """
     settings = get_settings()
-    conn = sqlite3.connect(
-        str(settings.db.path),
-        timeout=settings.db.timeout
-    )
-    conn.row_factory = sqlite3.Row
 
-    # Enable SQL echo if configured (for debugging)
-    if settings.db.echo_sql:
-        conn.set_trace_callback(print)
+    if settings.db.is_postgres:
+        if not HAS_PSYCOPG2:
+            raise ImportError("psycopg2 is required for PostgreSQL support. Install with: pip install psycopg2-binary")
 
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+        conn = psycopg2.connect(settings.db.url)
+        conn.autocommit = False
+
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    else:
+        # SQLite fallback
+        conn = sqlite3.connect(
+            str(settings.db.path),
+            timeout=settings.db.timeout
+        )
+        conn.row_factory = sqlite3.Row
+
+        # Enable SQL echo if configured (for debugging)
+        if settings.db.echo_sql:
+            conn.set_trace_callback(print)
+
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+
+def _row_to_dict(row, cursor, is_postgres: bool) -> Dict:
+    """Convert a database row to a dictionary."""
+    if is_postgres:
+        columns = [desc[0] for desc in cursor.description]
+        return dict(zip(columns, row))
+    else:
+        return dict(row)
 
 
 def init_db() -> None:
@@ -47,17 +84,34 @@ def init_db() -> None:
     Returns:
         None
     """
+    settings = get_settings()
+    is_postgres = settings.db.is_postgres
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS exercises (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                sets INTEGER NOT NULL,
-                reps INTEGER NOT NULL,
-                weight REAL
-            )
-        ''')
+
+        if is_postgres:
+            # PostgreSQL syntax
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS exercises (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    sets INTEGER NOT NULL,
+                    reps INTEGER NOT NULL,
+                    weight REAL
+                )
+            ''')
+        else:
+            # SQLite syntax
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS exercises (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    sets INTEGER NOT NULL,
+                    reps INTEGER NOT NULL,
+                    weight REAL
+                )
+            ''')
 
         # Check if we need to seed data
         cursor.execute('SELECT COUNT(*) FROM exercises')
@@ -75,10 +129,17 @@ def init_db() -> None:
                 ('Hip Thrust', 3, 8, 45),
                 ('Plank', 3, 60, None),  # Bodyweight (reps = seconds)
             ]
-            cursor.executemany(
-                'INSERT INTO exercises (name, sets, reps, weight) VALUES (?, ?, ?, ?)',
-                seed_data
-            )
+
+            if is_postgres:
+                cursor.executemany(
+                    'INSERT INTO exercises (name, sets, reps, weight) VALUES (%s, %s, %s, %s)',
+                    seed_data
+                )
+            else:
+                cursor.executemany(
+                    'INSERT INTO exercises (name, sets, reps, weight) VALUES (?, ?, ?, ?)',
+                    seed_data
+                )
 
 
 # Initialize database on module import
@@ -92,11 +153,14 @@ def get_all_exercises() -> List[Dict]:
         List[Dict]: A list of dictionaries, each containing exercise details
             (id, name, sets, reps, weight).
     """
+    settings = get_settings()
+    is_postgres = settings.db.is_postgres
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute('SELECT id, name, sets, reps, weight FROM exercises')
         rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+        return [_row_to_dict(row, cursor, is_postgres) for row in rows]
 
 
 def get_exercise_by_id(exercise_id: int) -> Optional[Dict]:
@@ -109,14 +173,25 @@ def get_exercise_by_id(exercise_id: int) -> Optional[Dict]:
         Optional[Dict]: A dictionary containing exercise details (id, name, sets, reps, weight)
             if found, None otherwise.
     """
+    settings = get_settings()
+    is_postgres = settings.db.is_postgres
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            'SELECT id, name, sets, reps, weight FROM exercises WHERE id = ?',
-            (exercise_id,)
-        )
+
+        if is_postgres:
+            cursor.execute(
+                'SELECT id, name, sets, reps, weight FROM exercises WHERE id = %s',
+                (exercise_id,)
+            )
+        else:
+            cursor.execute(
+                'SELECT id, name, sets, reps, weight FROM exercises WHERE id = ?',
+                (exercise_id,)
+            )
+
         row = cursor.fetchone()
-        return dict(row) if row else None
+        return _row_to_dict(row, cursor, is_postgres) if row else None
 
 
 def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = None) -> Dict:
@@ -132,13 +207,25 @@ def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = N
         Dict: A dictionary containing the newly created exercise details including
             the auto-generated id.
     """
+    settings = get_settings()
+    is_postgres = settings.db.is_postgres
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            'INSERT INTO exercises (name, sets, reps, weight) VALUES (?, ?, ?, ?)',
-            (name, sets, reps, weight)
-        )
-        exercise_id = cursor.lastrowid
+
+        if is_postgres:
+            cursor.execute(
+                'INSERT INTO exercises (name, sets, reps, weight) VALUES (%s, %s, %s, %s) RETURNING id',
+                (name, sets, reps, weight)
+            )
+            exercise_id = cursor.fetchone()[0]
+        else:
+            cursor.execute(
+                'INSERT INTO exercises (name, sets, reps, weight) VALUES (?, ?, ?, ?)',
+                (name, sets, reps, weight)
+            )
+            exercise_id = cursor.lastrowid
+
         return {
             'id': exercise_id,
             'name': name,
@@ -168,6 +255,10 @@ def edit_exercise(exercise_id: int, name: Optional[str] = None, sets: Optional[i
         Optional[Dict]: A dictionary containing the updated exercise details if the
             exercise exists, None otherwise.
     """
+    settings = get_settings()
+    is_postgres = settings.db.is_postgres
+    placeholder = '%s' if is_postgres else '?'
+
     # First check if exercise exists
     exercise = get_exercise_by_id(exercise_id)
     if not exercise:
@@ -178,17 +269,17 @@ def edit_exercise(exercise_id: int, name: Optional[str] = None, sets: Optional[i
     params = []
 
     if name is not None:
-        updates.append('name = ?')
+        updates.append(f'name = {placeholder}')
         params.append(name)
     if sets is not None:
-        updates.append('sets = ?')
+        updates.append(f'sets = {placeholder}')
         params.append(sets)
     if reps is not None:
-        updates.append('reps = ?')
+        updates.append(f'reps = {placeholder}')
         params.append(reps)
     # Include weight update if it's not None OR if update_weight flag is True
     if weight is not None or update_weight:
-        updates.append('weight = ?')
+        updates.append(f'weight = {placeholder}')
         params.append(weight)
 
     if not updates:
@@ -198,7 +289,7 @@ def edit_exercise(exercise_id: int, name: Optional[str] = None, sets: Optional[i
 
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        query = f'UPDATE exercises SET {", ".join(updates)} WHERE id = ?'
+        query = f'UPDATE exercises SET {", ".join(updates)} WHERE id = {placeholder}'
         cursor.execute(query, params)
 
     # Return updated exercise
@@ -215,7 +306,13 @@ def delete_exercise(exercise_id: int) -> bool:
         bool: True if the exercise was successfully deleted, False if the exercise
             was not found.
     """
+    settings = get_settings()
+    is_postgres = settings.db.is_postgres
+
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM exercises WHERE id = ?', (exercise_id,))
+        if is_postgres:
+            cursor.execute('DELETE FROM exercises WHERE id = %s', (exercise_id,))
+        else:
+            cursor.execute('DELETE FROM exercises WHERE id = ?', (exercise_id,))
         return cursor.rowcount > 0

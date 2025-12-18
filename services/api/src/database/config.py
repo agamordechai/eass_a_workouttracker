@@ -1,4 +1,5 @@
 """Configuration settings for the Workout Tracker API."""
+import os
 from pathlib import Path
 from typing import Optional, Literal
 from pydantic import Field, field_validator
@@ -8,16 +9,24 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class DatabaseSettings(BaseSettings):
     """Database configuration settings.
 
+    Supports both PostgreSQL (via DATABASE_URL) and SQLite (via path).
+    PostgreSQL is used when DATABASE_URL is set.
+
     Attributes:
-        path: Path to the SQLite database file
+        url: PostgreSQL connection URL (e.g., postgresql://user:pass@host:port/db)
+        path: Path to the SQLite database file (fallback if url not set)
         echo_sql: Whether to echo SQL statements (useful for debugging)
-        pool_size: Connection pool size (for future scaling to other databases)
+        pool_size: Connection pool size
         timeout: Database connection timeout in seconds
     """
 
+    url: Optional[str] = Field(
+        default=None,
+        description="PostgreSQL database URL (overrides path if set)"
+    )
     path: Path = Field(
         default=Path("data/workout_tracker.db"),
-        description="Path to the SQLite database file"
+        description="Path to the SQLite database file (used if url not set)"
     )
     echo_sql: bool = Field(
         default=False,
@@ -34,6 +43,18 @@ class DatabaseSettings(BaseSettings):
         ge=0.1,
         description="Database connection timeout in seconds"
     )
+
+    def __init__(self, **data):
+        """Initialize database settings, checking DATABASE_URL env var."""
+        # Check for DATABASE_URL environment variable
+        if 'url' not in data:
+            data['url'] = os.environ.get('DATABASE_URL')
+        super().__init__(**data)
+
+    @property
+    def is_postgres(self) -> bool:
+        """Check if using PostgreSQL."""
+        return self.url is not None and self.url.startswith('postgresql')
 
     @field_validator('path')
     @classmethod

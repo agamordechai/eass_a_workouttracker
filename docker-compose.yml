@@ -1,4 +1,23 @@
 services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: workout-tracker-db
+    environment:
+      - POSTGRES_USER=workout
+      - POSTGRES_PASSWORD=workout123
+      - POSTGRES_DB=workout_tracker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workout -d workout_tracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - workout-net
+
   api:
     build:
       context: .
@@ -7,7 +26,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Mount the database directory to persist data
+      # Mount the data directory for exports
       - ./data:/app/data
       # For development: mount the services code to enable hot-reloading
       # - ./services:/app/services
@@ -17,9 +36,8 @@ services:
       - APP_LOG_LEVEL=INFO
       - APP_CORS_ORIGINS=*
 
-      # Database configuration
-      - DB_PATH=/app/data/workout_tracker.db
-      - DB_TIMEOUT=10.0
+      # Database configuration - PostgreSQL connection
+      - DATABASE_URL=postgresql://workout:workout123@db:5432/workout_tracker
 
       # API configuration
       - API_HOST=0.0.0.0
@@ -31,6 +49,9 @@ services:
     # Alternative: use env_file for production
     # env_file:
     #   - .env.production
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -81,6 +102,8 @@ services:
       - tools  # Only starts with: docker-compose --profile tools up
 
 volumes:
+  postgres_data:
+    driver: local
   data:
     driver: local
 
