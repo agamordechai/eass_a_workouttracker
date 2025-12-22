@@ -2,10 +2,11 @@
 
 This module defines the REST API endpoints for managing workout exercises.
 """
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import RequestResponseEndpoint
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, AsyncGenerator
 from datetime import datetime, timezone
 import logging
 import time
@@ -33,11 +34,17 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan event handler.
+
+    Manages startup and shutdown events for the FastAPI application.
+    Logs configuration information on startup and cleanup on shutdown.
 
     Args:
         app (FastAPI): The FastAPI application instance.
+
+    Yields:
+        None: Control is yielded to the application during its runtime.
     """
     # Startup
     logger.info(f"Starting Workout Tracker API v{settings.api.version}")
@@ -72,15 +79,21 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def request_logging_middleware(request: Request, call_next):
+async def request_logging_middleware(
+    request: Request,
+    call_next: RequestResponseEndpoint
+) -> Response:
     """Middleware to log all incoming requests with timing and trace ID.
 
+    Adds request tracing capabilities and performance monitoring by logging
+    each request with a unique trace ID and calculating response time.
+
     Args:
-        request (Request): The incoming HTTP request.
-        call_next: The next middleware/route handler.
+        request (Request): The incoming HTTP request object.
+        call_next (RequestResponseEndpoint): The next middleware or route handler in the chain.
 
     Returns:
-        Response: The HTTP response with added headers.
+        Response: The HTTP response with X-Request-Id and X-Response-Time headers added.
     """
     # Generate or use existing trace ID
     trace_id = request.headers.get("X-Trace-Id", str(uuid.uuid4())[:8])

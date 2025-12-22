@@ -66,8 +66,17 @@ def get_db_connection() -> Generator[Any, None, None]:
             conn.close()
 
 
-def _row_to_dict(row, cursor, is_postgres: bool) -> Dict:
-    """Convert a database row to a dictionary."""
+def _row_to_dict(row: Any, cursor: Any, is_postgres: bool) -> Dict[str, Any]:
+    """Convert a database row to a dictionary.
+
+    Args:
+        row (Any): The database row to convert (sqlite3.Row or psycopg2 tuple).
+        cursor (Any): The database cursor used to get column names.
+        is_postgres (bool): Whether the database is PostgreSQL.
+
+    Returns:
+        Dict[str, Any]: A dictionary mapping column names to values.
+    """
     if is_postgres:
         columns = [desc[0] for desc in cursor.description]
         return dict(zip(columns, row))

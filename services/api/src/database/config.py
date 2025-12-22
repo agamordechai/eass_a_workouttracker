@@ -44,8 +44,13 @@ class DatabaseSettings(BaseSettings):
         description="Database connection timeout in seconds"
     )
 
-    def __init__(self, **data):
-        """Initialize database settings, checking DATABASE_URL env var."""
+    def __init__(self, **data) -> None:
+        """Initialize database settings, checking DATABASE_URL env var.
+
+        Args:
+            **data: Keyword arguments passed to the Pydantic model.
+                If 'url' is not provided, checks for DATABASE_URL environment variable.
+        """
         # Check for DATABASE_URL environment variable
         if 'url' not in data:
             data['url'] = os.environ.get('DATABASE_URL')
@@ -159,8 +164,18 @@ class AppSettings(BaseSettings):
     db: Optional[DatabaseSettings] = None
     api: Optional[APISettings] = None
 
-    def __init__(self, **data):
-        """Initialize settings and ensure nested settings use the same env file."""
+    def __init__(self, **data) -> None:
+        """Initialize settings and ensure nested settings use the same env file.
+
+        Handles initialization of nested DatabaseSettings and APISettings,
+        passing through any specified environment file for consistent configuration.
+
+        Args:
+            **data: Keyword arguments passed to the Pydantic model.
+                - _env_file: Optional path to .env file for configuration.
+                - db: Optional pre-configured DatabaseSettings instance.
+                - api: Optional pre-configured APISettings instance.
+        """
         # Extract _env_file if provided
         env_file = data.pop('_env_file', None)
 
