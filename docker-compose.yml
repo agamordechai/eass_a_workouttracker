@@ -64,17 +64,11 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: services/frontend/Dockerfile
+      context: ./services/frontend
+      dockerfile: Dockerfile
     container_name: workout-tracker-frontend
     ports:
-      - "8501:8501"
-    environment:
-      # API connection - use service name for internal Docker networking
-      - WORKOUT_API_BASE_URL=http://api:8000
-      - WORKOUT_TRACE_ID=ui-streamlit-docker
-      - PYTHONUNBUFFERED=1
-      - PYTHONPATH=/app
+      - "3000:80"
     depends_on:
       api:
         condition: service_healthy
