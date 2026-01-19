@@ -1,74 +1,184 @@
 ### Workout Tracker API - HTTP Requests
-DELETE {{baseUrl}}/exercises/1
-### Delete Exercise
-
-}
-  "weight": 100.0
-  "reps": 5,
-  "sets": 5,
-  "name": "Heavy Bench Press",
-{
-
-Content-Type: application/json
-PATCH {{baseUrl}}/exercises/1
-### Update Exercise (Full Update)
-
-}
-  "weight": null
-{
-
-Content-Type: application/json
-PATCH {{baseUrl}}/exercises/1
-### Update Exercise (Convert to Bodyweight)
-
-}
-  "reps": 6
-  "sets": 5,
-{
-
-Content-Type: application/json
-PATCH {{baseUrl}}/exercises/1
-### Update Exercise (Partial - Change Sets and Reps)
-
-}
-  "weight": 85.0
-{
-
-Content-Type: application/json
-PATCH {{baseUrl}}/exercises/1
-### Update Exercise (Partial - Change Weight)
-
-}
-  "reps": 10
-  "sets": 3,
-  "name": "Pull-ups",
-{
-
-Content-Type: application/json
-POST {{baseUrl}}/exercises
-### Create Bodyweight Exercise (No Weight)
-
-}
-  "weight": 80.0
-  "reps": 8,
-  "sets": 4,
-  "name": "Bench Press",
-{
-
-Content-Type: application/json
-POST {{baseUrl}}/exercises
-### Create New Exercise (Weighted)
-
-GET {{baseUrl}}/exercises/1
-### Get Exercise by ID
-
-GET {{baseUrl}}/exercises
-### Get All Exercises
-
-GET {{baseUrl}}/
-### Health Check / Root
+### Use with VS Code REST Client extension or JetBrains HTTP Client
 
 @baseUrl = http://localhost:8000
+@aiCoachUrl = http://localhost:8001
 
-### Use with VS Code REST Client extension or JetBrains HTTP Client
+### ============ WORKOUT API ============
+
+### Health Check / Root
+GET {{baseUrl}}/
+
+###
+
+### Get All Exercises
+GET {{baseUrl}}/exercises
+
+###
+
+### Get Exercise by ID
+GET {{baseUrl}}/exercises/1
+
+###
+
+### Create New Exercise (Weighted)
+POST {{baseUrl}}/exercises
+Content-Type: application/json
+
+{
+  "name": "Bench Press",
+  "sets": 4,
+  "reps": 8,
+  "weight": 80.0
+}
+
+###
+
+### Create Bodyweight Exercise (No Weight)
+POST {{baseUrl}}/exercises
+Content-Type: application/json
+
+{
+  "name": "Pull-ups",
+  "sets": 3,
+  "reps": 10
+}
+
+###
+
+### Update Exercise (Partial - Change Weight)
+PATCH {{baseUrl}}/exercises/1
+Content-Type: application/json
+
+{
+  "weight": 85.0
+}
+
+###
+
+### Update Exercise (Partial - Change Sets and Reps)
+PATCH {{baseUrl}}/exercises/1
+Content-Type: application/json
+
+{
+  "sets": 5,
+  "reps": 6
+}
+
+###
+
+### Delete Exercise
+DELETE {{baseUrl}}/exercises/1
+
+### ============ AI COACH API ============
+
+### AI Coach Health Check
+GET {{aiCoachUrl}}/health
+
+###
+
+### Chat with AI Coach (with workout context)
+POST {{aiCoachUrl}}/chat
+Content-Type: application/json
+
+{
+  "message": "What exercises should I add for a more balanced routine?",
+  "include_workout_context": true
+}
+
+###
+
+### Chat with AI Coach (general question)
+POST {{aiCoachUrl}}/chat
+Content-Type: application/json
+
+{
+  "message": "What's the best way to warm up before weightlifting?",
+  "include_workout_context": false
+}
+
+###
+
+### Get Workout Recommendation - Back Focus
+POST {{aiCoachUrl}}/recommend
+Content-Type: application/json
+
+{
+  "focus_area": "back",
+  "session_duration_minutes": 45,
+  "equipment_available": ["barbell", "dumbbells", "cables", "pull-up bar"]
+}
+
+###
+
+### Get Workout Recommendation - Chest Focus
+POST {{aiCoachUrl}}/recommend
+Content-Type: application/json
+
+{
+  "focus_area": "chest",
+  "session_duration_minutes": 60,
+  "equipment_available": ["barbell", "dumbbells", "cables", "bench"]
+}
+
+###
+
+### Get Workout Recommendation - Full Body
+POST {{aiCoachUrl}}/recommend
+Content-Type: application/json
+
+{
+  "session_duration_minutes": 60
+}
+
+###
+
+### Analyze Current Workout Routine
+GET {{aiCoachUrl}}/analyze
+
+###
+
+### Get Exercises (Proxy through AI Coach)
+GET {{aiCoachUrl}}/exercises
+
+### ============ AUTHENTICATION ============
+
+### Login as admin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+###
+
+### Login as regular user
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "user",
+  "password": "user123"
+}
+
+###
+
+### Get current user info (requires token)
+# Replace YOUR_TOKEN_HERE with actual token from login response
+GET {{baseUrl}}/auth/me
+Authorization: Bearer YOUR_TOKEN_HERE
+
+###
+
+### List all users (admin only)
+GET {{baseUrl}}/admin/users
+Authorization: Bearer YOUR_TOKEN_HERE
+
+###
+
+### Admin delete exercise (admin only)
+DELETE {{baseUrl}}/admin/exercises/1
+Authorization: Bearer YOUR_TOKEN_HERE
 

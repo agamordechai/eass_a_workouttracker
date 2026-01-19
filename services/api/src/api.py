@@ -2,12 +2,12 @@
 
 This module defines the REST API endpoints for managing workout exercises.
 """
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
 from contextlib import asynccontextmanager
 from typing import List, AsyncGenerator
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
 import time
 import uuid
@@ -21,6 +21,19 @@ from services.api.src.database.repository import (
     edit_exercise,
     delete_exercise
 )
+from services.api.src.auth import (
+    User,
+    Token,
+    LoginRequest,
+    authenticate_user,
+    create_access_token,
+    create_refresh_token,
+    get_current_active_user,
+    require_admin,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    USERS_DB,
+)
+from typing import Annotated
 
 # Get application settings
 settings = get_settings()
@@ -260,6 +273,101 @@ def delete_exercise_endpoint(exercise_id: int) -> None:
 
     Raises:
         HTTPException: 404 error if the exercise is not found.
+    """
+    success = delete_exercise(exercise_id)
+    if not success:
+        raise HTTPException(status_code=404, detail='Exercise not found')
+    return None
+
+
+# ============ Authentication Endpoints ============
+
+@app.post('/auth/login', response_model=Token, tags=["Authentication"])
+def login(login_request: LoginRequest) -> Token:
+    """Authenticate user and return JWT tokens.
+
+    Args:
+        login_request: Username and password
+
+    Returns:
+        Token: Access and refresh tokens
+
+    Raises:
+        HTTPException: 401 if credentials are invalid
+    """
+    user = authenticate_user(login_request.username, login_request.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(
+        data={"sub": user.username, "role": user.role.value},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    refresh_token = create_refresh_token(user.username)
+
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=refresh_token
+    )
+
+
+@app.get('/auth/me', response_model=User, tags=["Authentication"])
+async def get_me(
+    current_user: Annotated[User, Depends(get_current_active_user)]
+) -> User:
+    """Get current authenticated user info.
+
+    Args:
+        current_user: Current user from JWT token
+
+    Returns:
+        User: Current user details
+    """
+    return current_user
+
+
+@app.get('/admin/users', tags=["Admin"])
+async def list_users(
+    current_user: Annotated[User, Depends(require_admin)]
+) -> list[dict]:
+    """List all users (admin only).
+
+    Args:
+        current_user: Current admin user
+
+    Returns:
+        List of users (without passwords)
+    """
+    return [
+        {
+            "username": user.username,
+            "email": user.email,
+            "role": user.role.value,
+            "disabled": user.disabled
+        }
+        for user in USERS_DB.values()
+    ]
+
+
+@app.delete('/admin/exercises/{exercise_id}', status_code=204, tags=["Admin"])
+async def admin_delete_exercise(
+    exercise_id: int,
+    current_user: Annotated[User, Depends(require_admin)]
+) -> None:
+    """Delete exercise (admin only, protected route).
+
+    Args:
+        exercise_id: ID of exercise to delete
+        current_user: Current admin user
+
+    Raises:
+        HTTPException: 404 if exercise not found
     """
     success = delete_exercise(exercise_id)
     if not success:

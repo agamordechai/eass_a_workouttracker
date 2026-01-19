@@ -24,7 +24,8 @@ RUN uv pip install --system \
     "uvicorn[standard]>=0.32.0" \
     "pydantic>=2.10.0" \
     "pydantic-settings>=2.0.0" \
-    "psycopg2-binary>=2.9.0"
+    "psycopg2-binary>=2.9.0" \
+    "pyjwt>=2.8.0"
 
 # Copy API source code
 COPY services/__init__.py ./services/
