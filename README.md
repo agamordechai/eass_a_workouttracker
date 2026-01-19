@@ -1,10 +1,11 @@
 # Workout Tracker API
 
-A FastAPI-based REST API for managing workout exercises with PostgreSQL persistence.
+A FastAPI-based REST API for managing workout exercises with PostgreSQL persistence and AI-powered coaching.
 
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (recommended)
+- **OpenAI API Key** (for AI Coach features)
 - Or for local development:
   - Python 3.12+
   - [uv](https://docs.astral.sh/uv/) package manager
@@ -21,20 +22,32 @@ A FastAPI-based REST API for managing workout exercises with PostgreSQL persiste
 │   │   │   └── database/    # Database models, config, repository
 │   │   └── tests/           # API tests
 │   │
-│   └── frontend/            # Streamlit dashboard
+│   ├── ai_coach/            # AI Workout Coach (Pydantic AI)
+│   │   ├── Dockerfile       # AI Coach container definition
+│   │   ├── pyproject.toml   # AI Coach dependencies
+│   │   ├── src/
+│   │   │   ├── api.py       # FastAPI application
+│   │   │   ├── agent.py     # Pydantic AI agent
+│   │   │   ├── models.py    # Request/Response models
+│   │   │   └── workout_client.py  # HTTP client for main API
+│   │   └── tests/           # AI Coach tests
+│   │
+│   └── frontend/            # React frontend
 │       ├── Dockerfile       # Frontend container definition
-│       ├── pyproject.toml   # Frontend-specific dependencies
-│       ├── src/
-│       │   ├── dashboard.py # Streamlit UI
-│       │   └── client.py    # HTTP client for API
-│       └── tests/           # Frontend tests
+│       └── src/             # React components
+│
+├── docs/                    # Documentation
+│   ├── EX3-notes.md         # EX3 capstone documentation
+│   └── runbooks/
+│       └── compose.md       # Docker Compose runbook
 │
 ├── data/                    # Local development data
 │   └── exports/             # Exported CSV/JSON files
 │
 ├── scripts/                 # Utility scripts
 │   ├── api.http             # HTTP requests for API testing
-│   └── seed.py              # Database seeding script
+│   ├── seed.py              # Database seeding script
+│   └── demo.sh              # Demo script for EX3
 │
 ├── docker-compose.yml       # Multi-service orchestration
 └── pyproject.toml           # Root project dependencies (for local dev)
@@ -45,27 +58,34 @@ A FastAPI-based REST API for managing workout exercises with PostgreSQL persiste
 ### Option 1: Docker Compose (Recommended)
 
 ```bash
-# 1. Start all services (database, API, frontend)
+# 1. Create .env file with your OpenAI API key
+cp .env.example .env
+# Edit .env and add: OPENAI_API_KEY=your-key-here
+
+# 2. Start all services (database, API, AI Coach, frontend)
 docker-compose up -d
 
-# 2. Check all services are running
+# 3. Check all services are running
 docker-compose ps
 
-# 3. Open dashboard
-open http://localhost:8501
+# 4. Open frontend
+open http://localhost:3000
 
-# 4. Stop all services
+# 5. Stop all services
 docker-compose down
 
-# 5. Stop and remove all data (fresh start)
+# 6. Stop and remove all data (fresh start)
 docker-compose down -v
 ```
 
 **Services:**
 - **PostgreSQL Database**: Internal (port 5432)
+- **Redis**: Internal (port 6379)
 - **API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
-- **Streamlit Dashboard**: http://localhost:8501
+- **AI Coach**: http://localhost:8001
+- **AI Coach Docs**: http://localhost:8001/docs
+- **Frontend**: http://localhost:3000
 
 ### Option 2: Local Development (Without Docker)
 
@@ -76,8 +96,9 @@ uv sync
 # Terminal 1 - Start API
 uv run uvicorn services.api.src.api:app --reload
 
-# Terminal 2 - Start dashboard
-uv run streamlit run services/frontend/src/dashboard.py
+# Terminal 2 - Start AI Coach (requires OPENAI_API_KEY)
+export OPENAI_API_KEY=your-key-here
+uv run uvicorn services.ai_coach.src.api:app --port 8001 --reload
 ```
 
 > **Note:** Local development uses SQLite by default. Set `DATABASE_URL` environment variable to use PostgreSQL.
@@ -132,6 +153,37 @@ curl -X DELETE http://localhost:8000/exercises/1
 ```
 
 The `scripts/api.http` file contains ready-to-use HTTP requests for VS Code REST Client or JetBrains HTTP Client.
+
+## AI Coach Service
+
+The AI Coach provides intelligent workout recommendations and fitness advice using OpenAI's GPT models through Pydantic AI.
+
+### AI Coach Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check with service status |
+| POST | `/chat` | Chat with AI coach |
+| POST | `/recommend` | Get workout recommendations |
+| GET | `/analyze` | Analyze current routine |
+| GET | `/exercises` | Proxy to main API |
+
+### Example AI Coach Calls
+
+```bash
+# Chat with AI coach
+curl -X POST http://localhost:8001/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What exercises should I add for a balanced routine?", "include_workout_context": true}'
+
+# Get workout recommendation for back
+curl -X POST http://localhost:8001/recommend \
+  -H "Content-Type: application/json" \
+  -d '{"focus_area": "back", "session_duration_minutes": 45}'
+
+# Analyze current workout
+curl http://localhost:8001/analyze
+```
 
 ## User Interfaces
 
