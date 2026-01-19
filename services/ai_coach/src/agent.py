@@ -71,11 +71,43 @@ async def add_workout_context(ctx) -> str:
         context_str += f"- Total Exercises: {deps.workout_context.exercise_count}\n"
         context_str += f"- Total Volume: {deps.workout_context.total_volume:.1f} kg\n"
         context_str += f"- Muscle Groups Worked: {', '.join(deps.workout_context.muscle_groups_worked) or 'Not identified'}\n"
-        context_str += "\nExercises in current routine:\n"
 
-        for ex in deps.workout_context.exercises:
-            weight_str = f" @ {ex.weight}kg" if ex.weight else " (bodyweight)"
-            context_str += f"  - {ex.name}: {ex.sets} sets x {ex.reps} reps{weight_str}\n"
+        # Analyze workout split structure
+        workout_days = set(ex.workout_day for ex in deps.workout_context.exercises)
+        daily_exercises = [ex for ex in deps.workout_context.exercises if ex.workout_day == "None"]
+        split_days = [day for day in workout_days if day != "None"]
+
+        if daily_exercises:
+            context_str += f"- Daily Exercises (done every day): {len(daily_exercises)} exercise(s)\n"
+
+        if len(split_days) == 0 and daily_exercises:
+            context_str += f"- Workout Split: ALL DAILY (no specific day split)\n"
+        elif len(split_days) == 1:
+            context_str += f"- Workout Split: FULL BODY (all exercises on Day {split_days[0]})\n"
+        elif len(split_days) == 2:
+            context_str += f"- Workout Split: A/B SPLIT (Days: {', '.join(sorted(split_days))})\n"
+        elif len(split_days) == 3:
+            context_str += f"- Workout Split: A/B/C SPLIT (Days: {', '.join(sorted(split_days))})\n"
+        elif len(split_days) > 0:
+            context_str += f"- Workout Split: {len(split_days)}-DAY SPLIT (Days: {', '.join(sorted(split_days))})\n"
+
+        # Group exercises by workout day
+        context_str += "\nExercises grouped by workout day:\n"
+
+        # Show daily exercises first if any
+        if daily_exercises:
+            context_str += f"\n  Daily (Every Day):\n"
+            for ex in daily_exercises:
+                weight_str = f" @ {ex.weight}kg" if ex.weight else " (bodyweight)"
+                context_str += f"    - {ex.name}: {ex.sets} sets x {ex.reps} reps{weight_str}\n"
+
+        # Show split days
+        for day in sorted(split_days):
+            day_exercises = [ex for ex in deps.workout_context.exercises if ex.workout_day == day]
+            context_str += f"\n  Day {day}:\n"
+            for ex in day_exercises:
+                weight_str = f" @ {ex.weight}kg" if ex.weight else " (bodyweight)"
+                context_str += f"    - {ex.name}: {ex.sets} sets x {ex.reps} reps{weight_str}\n"
 
         return context_str
 
@@ -176,16 +208,21 @@ async def analyze_progress(
     """
     deps = CoachDependencies(workout_context=workout_context)
 
-    prompt = """Analyze the current workout routine and provide:
-1. A brief summary of the training approach
-2. Identified strengths in the current routine
-3. Areas that need improvement or attention
-4. Specific, actionable recommendations
-5. A muscle balance score (0-100) based on how well-rounded the routine is
+    prompt = """Analyze the workout routine provided in the context and give personalized feedback.
 
-Be encouraging but honest. Focus on practical improvements."""
+IMPORTANT: Base your analysis ONLY on the specific exercises, workout split, and training structure you see in the workout data. Do NOT provide generic advice.
+
+Provide:
+1. A brief summary of the training approach (mention the specific split type and structure you observe)
+2. Identified strengths in THIS specific routine (be specific to the exercises and split shown)
+3. Areas that need improvement (be specific to what's missing or imbalanced in THIS routine)
+4. Specific, actionable recommendations (based on the actual exercises and gaps you see)
+5. A muscle balance score (0-100) based on how well-rounded THIS specific routine is
+
+Be encouraging but honest. Focus on practical improvements specific to this person's actual workout."""
 
     try:
+        # Create analysis agent with the same system prompt decorator
         analysis_agent = Agent(
             model=settings.ai_model,
             output_type=ProgressAnalysis,
@@ -193,17 +230,66 @@ Be encouraging but honest. Focus on practical improvements."""
             deps_type=CoachDependencies
         )
 
+        # Register the workout context system prompt
+        @analysis_agent.system_prompt
+        async def add_analysis_workout_context(ctx) -> str:
+            """Add workout context to the analysis system prompt."""
+            deps: CoachDependencies = ctx.deps
+
+            if deps.workout_context and deps.workout_context.exercises:
+                context_str = "\n\nCurrent Workout Data:\n"
+                context_str += f"- Total Exercises: {deps.workout_context.exercise_count}\n"
+                context_str += f"- Total Volume: {deps.workout_context.total_volume:.1f} kg\n"
+                context_str += f"- Muscle Groups Worked: {', '.join(deps.workout_context.muscle_groups_worked) or 'Not identified'}\n"
+
+                # Analyze workout split structure
+                workout_days = set(ex.workout_day for ex in deps.workout_context.exercises)
+                daily_exercises = [ex for ex in deps.workout_context.exercises if ex.workout_day == "None"]
+                split_days = [day for day in workout_days if day != "None"]
+
+                if daily_exercises:
+                    context_str += f"- Daily Exercises (done every day): {len(daily_exercises)} exercise(s)\n"
+
+                if len(split_days) == 0 and daily_exercises:
+                    context_str += f"- Workout Split: ALL DAILY (no specific day split)\n"
+                elif len(split_days) == 1:
+                    context_str += f"- Workout Split: FULL BODY (all exercises on Day {split_days[0]})\n"
+                elif len(split_days) == 2:
+                    context_str += f"- Workout Split: A/B SPLIT (Days: {', '.join(sorted(split_days))})\n"
+                elif len(split_days) == 3:
+                    context_str += f"- Workout Split: A/B/C SPLIT (Days: {', '.join(sorted(split_days))})\n"
+                elif len(split_days) > 0:
+                    context_str += f"- Workout Split: {len(split_days)}-DAY SPLIT (Days: {', '.join(sorted(split_days))})\n"
+
+                # Group exercises by workout day
+                context_str += "\nExercises grouped by workout day:\n"
+
+                # Show daily exercises first if any
+                if daily_exercises:
+                    context_str += f"\n  Daily (Every Day):\n"
+                    for ex in daily_exercises:
+                        weight_str = f" @ {ex.weight}kg" if ex.weight else " (bodyweight)"
+                        context_str += f"    - {ex.name}: {ex.sets} sets x {ex.reps} reps{weight_str}\n"
+
+                # Show split days
+                for day in sorted(split_days):
+                    day_exercises = [ex for ex in deps.workout_context.exercises if ex.workout_day == day]
+                    context_str += f"\n  Day {day}:\n"
+                    for ex in day_exercises:
+                        weight_str = f" @ {ex.weight}kg" if ex.weight else " (bodyweight)"
+                        context_str += f"    - {ex.name}: {ex.sets} sets x {ex.reps} reps{weight_str}\n"
+
+                return context_str
+
+            return ""
+
         result = await analysis_agent.run(prompt, deps=deps)
         return result.output
     except Exception as e:
-        logger.error(f"Analysis error: {e}")
-        return ProgressAnalysis(
-            summary="Unable to analyze workout at this time.",
-            strengths=["You're tracking your workouts!"],
-            areas_to_improve=["Try adding more variety"],
-            recommendations=["Continue logging your exercises"],
-            muscle_balance_score=None
-        )
+        logger.error(f"Analysis error: {e}", exc_info=True)
+        logger.error(f"Workout context: {deps.workout_context}")
+        # Re-raise the exception so we can see what's actually wrong
+        raise
 
 
 def _get_fallback_recommendation(

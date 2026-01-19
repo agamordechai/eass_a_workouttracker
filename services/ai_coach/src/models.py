@@ -23,6 +23,7 @@ class ExerciseFromAPI(BaseModel):
     sets: int
     reps: int
     weight: Optional[float] = None
+    workout_day: str = "A"  # A-G for specific days, "None" for daily exercises
 
 
 class WorkoutContext(BaseModel):

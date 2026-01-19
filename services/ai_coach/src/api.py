@@ -199,10 +199,10 @@ async def analyze_workout() -> ProgressAnalysis:
         analysis = await analyze_progress(workout_context)
         return analysis
     except Exception as e:
-        logger.error(f"Analysis error: {e}")
+        logger.error(f"Analysis error: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail="Failed to analyze workout. Please try again."
+            detail=f"Failed to analyze workout: {str(e)}"
         )
 
 

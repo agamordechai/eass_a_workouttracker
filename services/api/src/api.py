@@ -215,7 +215,7 @@ def add_exercise(exercise: Exercise) -> ExerciseResponse:
     """Create a new exercise in the database.
 
     Args:
-        exercise (Exercise): The exercise data including name, sets, reps, and optional weight.
+        exercise (Exercise): The exercise data including name, sets, reps, optional weight, and workout_day.
 
     Returns:
         ExerciseResponse: The newly created exercise with its assigned ID.
@@ -224,7 +224,8 @@ def add_exercise(exercise: Exercise) -> ExerciseResponse:
         name=exercise.name,
         sets=exercise.sets,
         reps=exercise.reps,
-        weight=exercise.weight
+        weight=exercise.weight,
+        workout_day=exercise.workout_day
     )
     return new_exercise
 
@@ -254,7 +255,8 @@ def edit_exercise_endpoint(exercise_id: int, exercise_edit: ExerciseEditRequest)
         sets=exercise_edit.sets,
         reps=exercise_edit.reps,
         weight=exercise_edit.weight,
-        update_weight=update_weight_flag
+        update_weight=update_weight_flag,
+        workout_day=exercise_edit.workout_day
     )
     if not exercise:
         raise HTTPException(status_code=404, detail='Exercise not found')

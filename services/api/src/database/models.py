@@ -11,6 +11,7 @@ class Exercise(BaseModel):
         sets (int): The number of sets to perform (1-100).
         reps (int): The number of repetitions per set (1-1000).
         weight (Optional[float]): The weight used in kg (optional, >= 0).
+        workout_day (str): The workout day identifier (e.g., A, B, C for splits).
     """
     name: str = Field(
         ...,
@@ -39,6 +40,13 @@ class Exercise(BaseModel):
         description="Weight in kg (None for bodyweight exercises)",
         examples=[60.0, 80.5, None]
     )
+    workout_day: str = Field(
+        default='A',
+        min_length=1,
+        max_length=10,
+        description="Workout day identifier (A-G for specific days, 'None' for daily exercises)",
+        examples=["A", "B", "C", "None"]
+    )
 
 
 class ExerciseResponse(BaseModel):
@@ -50,12 +58,14 @@ class ExerciseResponse(BaseModel):
         sets (int): The number of sets to perform (1-100).
         reps (int): The number of repetitions per set (1-1000).
         weight (Optional[float]): The weight used in kg (optional, >= 0).
+        workout_day (str): The workout day identifier (e.g., A, B, C for splits).
     """
     id: int = Field(..., ge=1, description="Unique identifier of the exercise")
     name: str = Field(..., min_length=1, max_length=100, description="Name of the exercise")
     sets: int = Field(..., ge=1, le=100, description="Number of sets")
     reps: int = Field(..., ge=1, le=1000, description="Number of reps per set")
     weight: Optional[float] = Field(default=None, ge=0, description="Weight in kg")
+    workout_day: str = Field(..., min_length=1, max_length=10, description="Workout day identifier (A-G for specific days, 'None' for daily exercises)")
 
 
 class ExerciseEditRequest(BaseModel):
@@ -68,6 +78,7 @@ class ExerciseEditRequest(BaseModel):
         sets (Optional[int]): The new number of sets (1-100).
         reps (Optional[int]): The new number of repetitions (1-1000).
         weight (Optional[float]): The new weight value in kg (>= 0, or None for bodyweight).
+        workout_day (Optional[str]): The workout day identifier (A, B, C, etc.).
     """
     name: Optional[str] = Field(
         default=None,
@@ -91,6 +102,12 @@ class ExerciseEditRequest(BaseModel):
         default=None,
         ge=0,
         description="New weight in kg (None for bodyweight)"
+    )
+    workout_day: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        max_length=10,
+        description="New workout day identifier (A-G for specific days, 'None' for daily exercises)"
     )
 
 

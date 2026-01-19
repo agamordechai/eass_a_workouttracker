@@ -14,6 +14,7 @@ export function CreateExerciseForm({ onSubmit }: CreateExerciseFormProps) {
   const [sets, setSets] = useState(3);
   const [reps, setReps] = useState(10);
   const [weight, setWeight] = useState('');
+  const [workoutDay, setWorkoutDay] = useState('A');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,6 +47,7 @@ export function CreateExerciseForm({ onSubmit }: CreateExerciseFormProps) {
         sets,
         reps,
         weight: weightValue,
+        workout_day: workoutDay,
       });
 
       const weightDisplay = weightValue ? `${weightValue} kg` : 'Bodyweight';
@@ -56,6 +58,7 @@ export function CreateExerciseForm({ onSubmit }: CreateExerciseFormProps) {
       setSets(3);
       setReps(10);
       setWeight('');
+      setWorkoutDay('A');
     } catch (err) {
       setError(`Failed to create exercise: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
@@ -120,6 +123,25 @@ export function CreateExerciseForm({ onSubmit }: CreateExerciseFormProps) {
               onChange={(e) => setWeight(e.target.value)}
               disabled={isSubmitting}
             />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="create-workout-day">Workout Day *</label>
+            <select
+              id="create-workout-day"
+              value={workoutDay}
+              onChange={(e) => setWorkoutDay(e.target.value)}
+              disabled={isSubmitting}
+            >
+              <option value="None">Daily (Every Day)</option>
+              <option value="A">Day A</option>
+              <option value="B">Day B</option>
+              <option value="C">Day C</option>
+              <option value="D">Day D</option>
+              <option value="E">Day E</option>
+              <option value="F">Day F</option>
+              <option value="G">Day G</option>
+            </select>
           </div>
         </div>
 

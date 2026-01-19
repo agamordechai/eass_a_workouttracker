@@ -8,6 +8,7 @@ export interface Exercise {
   sets: number;
   reps: number;
   weight: number | null;
+  workout_day: string;
 }
 
 export interface CreateExerciseRequest {
@@ -15,6 +16,7 @@ export interface CreateExerciseRequest {
   sets: number;
   reps: number;
   weight?: number | null;
+  workout_day?: string;
 }
 
 export interface UpdateExerciseRequest {
@@ -22,6 +24,7 @@ export interface UpdateExerciseRequest {
   sets?: number;
   reps?: number;
   weight?: number | null;
+  workout_day?: string;
 }
 
 export type FilterType = 'All' | 'Weighted Only' | 'Bodyweight Only';

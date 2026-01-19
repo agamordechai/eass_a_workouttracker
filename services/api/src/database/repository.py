@@ -107,7 +107,8 @@ def init_db() -> None:
                     name VARCHAR(100) NOT NULL,
                     sets INTEGER NOT NULL,
                     reps INTEGER NOT NULL,
-                    weight REAL
+                    weight REAL,
+                    workout_day VARCHAR(10) DEFAULT 'A'
                 )
             ''')
         else:
@@ -118,9 +119,30 @@ def init_db() -> None:
                     name TEXT NOT NULL,
                     sets INTEGER NOT NULL,
                     reps INTEGER NOT NULL,
-                    weight REAL
+                    weight REAL,
+                    workout_day TEXT DEFAULT 'A'
                 )
             ''')
+
+        # Migration: Add workout_day column if it doesn't exist
+        try:
+            if is_postgres:
+                cursor.execute('''
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name='exercises' AND column_name='workout_day'
+                ''')
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE exercises ADD COLUMN workout_day VARCHAR(10) DEFAULT 'A'")
+            else:
+                # SQLite: Try to select from the column, if it fails, it doesn't exist
+                try:
+                    cursor.execute('SELECT workout_day FROM exercises LIMIT 1')
+                except sqlite3.OperationalError:
+                    cursor.execute("ALTER TABLE exercises ADD COLUMN workout_day TEXT DEFAULT 'A'")
+        except Exception as e:
+            # Column might already exist, continue
+            pass
 
         # Check if we need to seed data
         cursor.execute('SELECT COUNT(*) FROM exercises')
@@ -128,25 +150,26 @@ def init_db() -> None:
 
         if count == 0:
             # Seed with initial data (mix of weighted and bodyweight exercises)
+            # Format: (name, sets, reps, weight, workout_day)
             seed_data = [
-                ('Bench Press', 3, 10, 95),
-                ('Shoulder Press', 3, 10, 22.5),
-                ('Tricep curl', 3, 10, 42.5),
-                ('Pull ups', 3, 8, None),  # Bodyweight
-                ('Push ups', 3, 15, None),  # Bodyweight
-                ('Squats', 3, 8, 60),
-                ('Hip Thrust', 3, 8, 45),
-                ('Plank', 3, 60, None),  # Bodyweight (reps = seconds)
+                ('Bench Press', 3, 10, 95, 'A'),        # Push day
+                ('Shoulder Press', 3, 10, 22.5, 'A'),   # Push day
+                ('Tricep curl', 3, 10, 42.5, 'A'),      # Push day
+                ('Pull ups', 3, 8, None, 'B'),          # Pull day (bodyweight)
+                ('Push ups', 3, 15, None, 'A'),         # Push day (bodyweight)
+                ('Squats', 3, 8, 60, 'C'),              # Leg day
+                ('Hip Thrust', 3, 8, 45, 'C'),          # Leg day
+                ('Plank', 3, 60, None, 'B'),            # Pull/Core day (bodyweight, reps = seconds)
             ]
 
             if is_postgres:
                 cursor.executemany(
-                    'INSERT INTO exercises (name, sets, reps, weight) VALUES (%s, %s, %s, %s)',
+                    'INSERT INTO exercises (name, sets, reps, weight, workout_day) VALUES (%s, %s, %s, %s, %s)',
                     seed_data
                 )
             else:
                 cursor.executemany(
-                    'INSERT INTO exercises (name, sets, reps, weight) VALUES (?, ?, ?, ?)',
+                    'INSERT INTO exercises (name, sets, reps, weight, workout_day) VALUES (?, ?, ?, ?, ?)',
                     seed_data
                 )
 
@@ -160,14 +183,14 @@ def get_all_exercises() -> List[Dict]:
 
     Returns:
         List[Dict]: A list of dictionaries, each containing exercise details
-            (id, name, sets, reps, weight).
+            (id, name, sets, reps, weight, workout_day).
     """
     settings = get_settings()
     is_postgres = settings.db.is_postgres
 
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT id, name, sets, reps, weight FROM exercises')
+        cursor.execute('SELECT id, name, sets, reps, weight, workout_day FROM exercises')
         rows = cursor.fetchall()
         return [_row_to_dict(row, cursor, is_postgres) for row in rows]
 
@@ -179,7 +202,7 @@ def get_exercise_by_id(exercise_id: int) -> Optional[Dict]:
         exercise_id (int): The unique identifier of the exercise to retrieve.
 
     Returns:
-        Optional[Dict]: A dictionary containing exercise details (id, name, sets, reps, weight)
+        Optional[Dict]: A dictionary containing exercise details (id, name, sets, reps, weight, workout_day)
             if found, None otherwise.
     """
     settings = get_settings()
@@ -190,12 +213,12 @@ def get_exercise_by_id(exercise_id: int) -> Optional[Dict]:
 
         if is_postgres:
             cursor.execute(
-                'SELECT id, name, sets, reps, weight FROM exercises WHERE id = %s',
+                'SELECT id, name, sets, reps, weight, workout_day FROM exercises WHERE id = %s',
                 (exercise_id,)
             )
         else:
             cursor.execute(
-                'SELECT id, name, sets, reps, weight FROM exercises WHERE id = ?',
+                'SELECT id, name, sets, reps, weight, workout_day FROM exercises WHERE id = ?',
                 (exercise_id,)
             )
 
@@ -203,7 +226,7 @@ def get_exercise_by_id(exercise_id: int) -> Optional[Dict]:
         return _row_to_dict(row, cursor, is_postgres) if row else None
 
 
-def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = None) -> Dict:
+def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = None, workout_day: str = 'A') -> Dict:
     """Create a new exercise in the database.
 
     Args:
@@ -211,6 +234,7 @@ def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = N
         sets (int): The number of sets to perform.
         reps (int): The number of repetitions per set.
         weight (Optional[float], optional): The weight used in the exercise. Defaults to None.
+        workout_day (str, optional): The workout day (A, B, C, etc.). Defaults to 'A'.
 
     Returns:
         Dict: A dictionary containing the newly created exercise details including
@@ -224,14 +248,14 @@ def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = N
 
         if is_postgres:
             cursor.execute(
-                'INSERT INTO exercises (name, sets, reps, weight) VALUES (%s, %s, %s, %s) RETURNING id',
-                (name, sets, reps, weight)
+                'INSERT INTO exercises (name, sets, reps, weight, workout_day) VALUES (%s, %s, %s, %s, %s) RETURNING id',
+                (name, sets, reps, weight, workout_day)
             )
             exercise_id = cursor.fetchone()[0]
         else:
             cursor.execute(
-                'INSERT INTO exercises (name, sets, reps, weight) VALUES (?, ?, ?, ?)',
-                (name, sets, reps, weight)
+                'INSERT INTO exercises (name, sets, reps, weight, workout_day) VALUES (?, ?, ?, ?, ?)',
+                (name, sets, reps, weight, workout_day)
             )
             exercise_id = cursor.lastrowid
 
@@ -240,13 +264,14 @@ def create_exercise(name: str, sets: int, reps: int, weight: Optional[float] = N
             'name': name,
             'sets': sets,
             'reps': reps,
-            'weight': weight
+            'weight': weight,
+            'workout_day': workout_day
         }
 
 
 def edit_exercise(exercise_id: int, name: Optional[str] = None, sets: Optional[int] = None,
                   reps: Optional[int] = None, weight: Optional[float] = None,
-                  update_weight: bool = False) -> Optional[Dict[str, Any]]:
+                  update_weight: bool = False, workout_day: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Update any attributes of an exercise in the database.
 
     Only the provided fields will be updated; None values are ignored except for weight
@@ -259,6 +284,7 @@ def edit_exercise(exercise_id: int, name: Optional[str] = None, sets: Optional[i
         reps (Optional[int], optional): The new number of repetitions. Defaults to None.
         weight (Optional[float], optional): The new weight value. Defaults to None.
         update_weight (bool, optional): If True, updates weight even if None. Defaults to False.
+        workout_day (Optional[str], optional): The workout day (A, B, C, etc.). Defaults to None.
 
     Returns:
         Optional[Dict]: A dictionary containing the updated exercise details if the
@@ -290,6 +316,9 @@ def edit_exercise(exercise_id: int, name: Optional[str] = None, sets: Optional[i
     if weight is not None or update_weight:
         updates.append(f'weight = {placeholder}')
         params.append(weight)
+    if workout_day is not None:
+        updates.append(f'workout_day = {placeholder}')
+        params.append(workout_day)
 
     if not updates:
         return exercise
