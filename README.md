@@ -47,6 +47,8 @@ A FastAPI-based REST API for managing workout exercises with PostgreSQL persiste
 ├── scripts/                 # Utility scripts
 │   ├── api.http             # HTTP requests for API testing
 │   ├── seed.py              # Database seeding script
+│   ├── refresh.py           # Async refresh with Redis idempotency
+│   ├── test_refresh.py      # Tests for refresh script
 │   └── demo.sh              # Demo script for EX3
 │
 ├── docker-compose.yml       # Multi-service orchestration
@@ -185,38 +187,30 @@ curl -X POST http://localhost:8001/recommend \
 curl http://localhost:8001/analyze
 ```
 
-## User Interfaces
+## User Interface
 
-The Streamlit Dashboard provides a visual web interface for managing exercises.
+### React Frontend
 
-### Streamlit Dashboard
-
-A web-based dashboard with real-time statistics and full CRUD operations.
+A modern React/TypeScript single-page application for managing workouts.
 
 **Features:**
-- List & filter exercises (Weighted/Bodyweight/All)
-- Search by exercise name
-- Real-time metrics (total exercises, sets, volume)
-- Create, update, and delete exercises
-- Auto-refresh every 30 seconds
+- Exercise management (create, read, update, delete)
+- Workout metrics and statistics
+- AI Coach chat integration
+- Workout recommendations panel
+- Responsive design
 
-**Running the Dashboard:**
+**Access:**
 ```bash
-# With Docker
-docker-compose up -d
-# Access at http://localhost:8501
+# With Docker (recommended)
+docker compose up -d
+# Access at http://localhost:3000
 
-# Without Docker (API must be running)
-uv run streamlit run services/frontend/src/dashboard.py
+# For frontend development
+cd services/frontend
+npm install
+npm run dev
 ```
-
-**User Guide:**
-1. View exercises in the main table
-2. Use dropdown to filter by type (Weighted/Bodyweight/All)
-3. Search exercises by name
-4. Click "Load Exercise" to update an existing exercise
-5. Fill the form to create new exercises
-6. Delete exercises from the bottom section
 
 
 ## Running Tests
@@ -228,9 +222,11 @@ uv run pytest
 # Run with verbose output
 uv run pytest -v
 
-# Run specific test file
-uv run pytest services/api/tests/test_api.py -v
-uv run pytest services/frontend/tests/test_client.py -v
+# Run specific test files
+uv run pytest services/api/tests/test_api.py -v      # API tests
+uv run pytest services/api/tests/test_auth.py -v     # Auth & scope tests
+uv run pytest services/ai_coach/tests/ -v            # AI Coach tests
+uv run pytest scripts/test_refresh.py -v             # Async refresh tests
 
 # Run with coverage
 uv run pytest --cov=services
@@ -248,13 +244,14 @@ uv run pytest --cov=services
 
 ## Tech Stack
 
-- **Framework:** FastAPI 0.115+
-- **Server:** Uvicorn
+- **Backend:** FastAPI 0.115+, Uvicorn
+- **Frontend:** React, TypeScript, Vite
 - **Database:** PostgreSQL 15 (Docker) / SQLite3 (local)
+- **Cache:** Redis 7
+- **AI:** Pydantic AI with Anthropic Claude
 - **Validation:** Pydantic 2.10+
-- **Dashboard:** Streamlit 1.40+
 - **HTTP Client:** httpx
-- **Package Manager:** uv
+- **Package Manager:** uv (Python), npm (frontend)
 - **Container:** Docker + Docker Compose
 
 ## AI Assistance

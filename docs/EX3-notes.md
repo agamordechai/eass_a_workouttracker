@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-The Workout Tracker application consists of **4 cooperating microservices**:
+The Workout Tracker application consists of **4 cooperating microservices** (3+1 as per EX3 requirements):
 
 ```
 ┌─────────────────┐     ┌─────────────────┐
@@ -25,8 +25,8 @@ The Workout Tracker application consists of **4 cooperating microservices**:
 
 1. **Workout API** (`services/api/`) - Core FastAPI backend with CRUD operations for exercises
 2. **PostgreSQL** - Persistent storage for workout data
-3. **Frontend** (`services/frontend/`) - React/TypeScript SPA with Vite
-4. **AI Coach** (`services/ai_coach/`) - LLM-powered workout coaching using Pydantic AI
+3. **Frontend** (`services/frontend/`) - React/TypeScript SPA with Vite (user interface)
+4. **AI Coach** (`services/ai_coach/`) - LLM-powered workout coaching using Pydantic AI (4th microservice)
 5. **Redis** - Caching layer for AI Coach responses
 
 ## 4th Microservice: AI Workout Coach
@@ -240,17 +240,37 @@ pytest scripts/test_refresh.py -v --anyio-backends=asyncio
 
 ## Demo Script
 
-```bash
-# Quick demo
-./scripts/demo.sh
+The demo script (`scripts/demo.sh`) provides a comprehensive walkthrough of all features:
 
-# Or manually:
+```bash
+# Run the full demo
+./scripts/demo.sh
+```
+
+### What the Demo Does
+1. Starts all services via Docker Compose
+2. Verifies health of API and AI Coach
+3. Demonstrates REST API (CRUD operations)
+4. Shows authentication flow (login, protected routes)
+5. Demonstrates role-based access control (user vs admin)
+6. Tests AI Coach integration
+
+### Manual Demo
+```bash
+# Start services
 docker compose up -d
 sleep 10
+
+# Test API
 curl http://localhost:8000/exercises
+
+# Test AI Coach
 curl -X POST http://localhost:8001/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "What exercises should I add for a balanced routine?"}'
+
+# Open React Frontend
+open http://localhost:3000
 ```
 
 ## Logfire/Redis Traces

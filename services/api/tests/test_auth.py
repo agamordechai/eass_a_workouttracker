@@ -2,6 +2,7 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
+from fastapi.testclient import TestClient
 
 from services.api.src.auth import (
     hash_password,
@@ -17,6 +18,7 @@ from services.api.src.auth import (
     SECRET_KEY,
     ALGORITHM
 )
+from services.api.src.api import app
 
 
 class TestPasswordHashing:
@@ -201,4 +203,201 @@ class TestUserModels:
         )
 
         assert user.hashed_password == "somehash"
+
+
+# Fixture for TestClient
+@pytest.fixture
+def client():
+    """Create a test client for the FastAPI app."""
+    return TestClient(app)
+
+
+@pytest.fixture
+def user_token():
+    """Create a valid token for a regular user."""
+    return create_access_token(
+        data={"sub": "user", "role": "user"},
+        expires_delta=timedelta(minutes=30)
+    )
+
+
+@pytest.fixture
+def admin_token():
+    """Create a valid token for an admin user."""
+    return create_access_token(
+        data={"sub": "admin", "role": "admin"},
+        expires_delta=timedelta(minutes=30)
+    )
+
+
+@pytest.fixture
+def expired_token():
+    """Create an expired token."""
+    return create_access_token(
+        data={"sub": "user", "role": "user"},
+        expires_delta=timedelta(seconds=-1)
+    )
+
+
+class TestProtectedEndpoints:
+    """Integration tests for protected API endpoints.
+
+    These tests verify that role-based access control works correctly
+    by testing the actual API endpoints with different tokens.
+    """
+
+    def test_auth_me_without_token_returns_401(self, client):
+        """Test that /auth/me returns 401 when no token is provided."""
+        response = client.get("/auth/me")
+
+        assert response.status_code == 401
+        assert "Could not validate credentials" in response.json()["detail"]
+
+    def test_auth_me_with_expired_token_returns_401(self, client, expired_token):
+        """Test that /auth/me returns 401 when token is expired."""
+        response = client.get(
+            "/auth/me",
+            headers={"Authorization": f"Bearer {expired_token}"}
+        )
+
+        assert response.status_code == 401
+        assert "Could not validate credentials" in response.json()["detail"]
+
+    def test_auth_me_with_invalid_token_returns_401(self, client):
+        """Test that /auth/me returns 401 when token is invalid."""
+        response = client.get(
+            "/auth/me",
+            headers={"Authorization": "Bearer invalid.token.here"}
+        )
+
+        assert response.status_code == 401
+        assert "Could not validate credentials" in response.json()["detail"]
+
+    def test_auth_me_with_valid_user_token_succeeds(self, client, user_token):
+        """Test that /auth/me succeeds with valid user token."""
+        response = client.get(
+            "/auth/me",
+            headers={"Authorization": f"Bearer {user_token}"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["username"] == "user"
+        assert data["role"] == "user"
+
+    def test_admin_users_without_token_returns_401(self, client):
+        """Test that /admin/users returns 401 when no token is provided."""
+        response = client.get("/admin/users")
+
+        assert response.status_code == 401
+        assert "Could not validate credentials" in response.json()["detail"]
+
+    def test_admin_users_with_user_role_returns_403(self, client, user_token):
+        """Test that /admin/users returns 403 when user lacks admin scope.
+
+        This is the key test for 'missing scope' - a valid token but
+        insufficient permissions should return 403 Forbidden.
+        """
+        response = client.get(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {user_token}"}
+        )
+
+        assert response.status_code == 403
+        assert "not authorized" in response.json()["detail"].lower()
+        assert "admin" in response.json()["detail"].lower()
+
+    def test_admin_users_with_admin_role_succeeds(self, client, admin_token):
+        """Test that /admin/users succeeds with admin token."""
+        response = client.get(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        # Should contain at least admin and user
+        usernames = [u["username"] for u in data]
+        assert "admin" in usernames
+        assert "user" in usernames
+
+    def test_admin_delete_exercise_with_user_role_returns_403(self, client, user_token):
+        """Test that /admin/exercises/{id} DELETE returns 403 for non-admin.
+
+        Tests that admin-protected endpoints reject users without admin scope.
+        """
+        response = client.delete(
+            "/admin/exercises/999",
+            headers={"Authorization": f"Bearer {user_token}"}
+        )
+
+        assert response.status_code == 403
+        assert "not authorized" in response.json()["detail"].lower()
+
+    def test_admin_delete_exercise_with_expired_token_returns_401(self, client, expired_token):
+        """Test that /admin/exercises/{id} DELETE returns 401 for expired token."""
+        response = client.delete(
+            "/admin/exercises/999",
+            headers={"Authorization": f"Bearer {expired_token}"}
+        )
+
+        assert response.status_code == 401
+
+
+class TestLoginEndpoint:
+    """Tests for the /auth/login endpoint."""
+
+    def test_login_with_valid_credentials(self, client):
+        """Test successful login returns tokens."""
+        response = client.post(
+            "/auth/login",
+            json={"username": "admin", "password": "admin123"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert data["token_type"] == "bearer"
+        assert data["expires_in"] > 0
+
+    def test_login_with_invalid_username(self, client):
+        """Test login with invalid username returns 401."""
+        response = client.post(
+            "/auth/login",
+            json={"username": "nonexistent", "password": "password123"}
+        )
+
+        assert response.status_code == 401
+        assert "Incorrect username or password" in response.json()["detail"]
+
+    def test_login_with_invalid_password(self, client):
+        """Test login with invalid password returns 401."""
+        response = client.post(
+            "/auth/login",
+            json={"username": "admin", "password": "wrongpassword"}
+        )
+
+        assert response.status_code == 401
+        assert "Incorrect username or password" in response.json()["detail"]
+
+    def test_login_token_can_access_protected_route(self, client):
+        """Test that token from login can access protected routes."""
+        # Login first
+        login_response = client.post(
+            "/auth/login",
+            json={"username": "user", "password": "user123"}
+        )
+        assert login_response.status_code == 200
+        token = login_response.json()["access_token"]
+
+        # Use token to access protected route
+        me_response = client.get(
+            "/auth/me",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+
+        assert me_response.status_code == 200
+        assert me_response.json()["username"] == "user"
 

@@ -274,3 +274,146 @@ def test_create_exercise_invalid_negative_weight(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+# ============ Workout Day Split Feature Tests (EX3 Enhancement) ============
+
+def test_create_exercise_with_workout_day(client: TestClient) -> None:
+    """Test creating an exercise with a specific workout day.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    new_exercise = {
+        'name': 'Bench Press',
+        'sets': 4,
+        'reps': 8,
+        'weight': 80.0,
+        'workout_day': 'A'
+    }
+    response = client.post('/exercises', json=new_exercise)
+    assert response.status_code == 201
+    data = response.json()
+    assert data['workout_day'] == 'A'
+
+
+def test_create_exercise_default_workout_day(client: TestClient) -> None:
+    """Test that exercises get default workout day when not specified.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    new_exercise = {
+        'name': 'Default Day Exercise',
+        'sets': 3,
+        'reps': 10
+    }
+    response = client.post('/exercises', json=new_exercise)
+    assert response.status_code == 201
+    data = response.json()
+    assert 'workout_day' in data
+    assert data['workout_day'] == 'A'  # Default value
+
+
+def test_create_exercise_with_different_workout_days(client: TestClient) -> None:
+    """Test creating exercises with different workout days (A-G split).
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    workout_days = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+
+    for day in workout_days:
+        exercise = {
+            'name': f'Exercise Day {day}',
+            'sets': 3,
+            'reps': 10,
+            'workout_day': day
+        }
+        response = client.post('/exercises', json=exercise)
+        assert response.status_code == 201
+        data = response.json()
+        assert data['workout_day'] == day
+
+
+def test_create_exercise_with_none_workout_day(client: TestClient) -> None:
+    """Test creating a daily exercise (workout_day = 'None').
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    new_exercise = {
+        'name': 'Daily Stretching',
+        'sets': 1,
+        'reps': 10,
+        'workout_day': 'None'
+    }
+    response = client.post('/exercises', json=new_exercise)
+    assert response.status_code == 201
+    data = response.json()
+    assert data['workout_day'] == 'None'
+
+
+def test_update_exercise_workout_day(client: TestClient) -> None:
+    """Test updating an exercise's workout day.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    # Create exercise on day A
+    new_exercise = {
+        'name': 'Movable Exercise',
+        'sets': 3,
+        'reps': 10,
+        'workout_day': 'A'
+    }
+    create_response = client.post('/exercises', json=new_exercise)
+    exercise_id = create_response.json()['id']
+    assert create_response.json()['workout_day'] == 'A'
+
+    # Move to day B
+    update_response = client.patch(
+        f'/exercises/{exercise_id}',
+        json={'workout_day': 'B'}
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()['workout_day'] == 'B'
+
+
+def test_exercise_response_includes_workout_day(client: TestClient) -> None:
+    """Test that exercise list includes workout_day field.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    response = client.get('/exercises')
+    assert response.status_code == 200
+    exercises = response.json()
+    assert len(exercises) > 0
+
+    # All exercises should have workout_day field
+    for exercise in exercises:
+        assert 'workout_day' in exercise
+
+
+def test_get_single_exercise_includes_workout_day(client: TestClient) -> None:
+    """Test that getting a single exercise includes workout_day.
+
+    Args:
+        client (TestClient): The test client fixture.
+    """
+    # Create exercise with specific day
+    new_exercise = {
+        'name': 'Single Fetch Test',
+        'sets': 3,
+        'reps': 10,
+        'workout_day': 'C'
+    }
+    create_response = client.post('/exercises', json=new_exercise)
+    exercise_id = create_response.json()['id']
+
+    # Fetch single exercise
+    response = client.get(f'/exercises/{exercise_id}')
+    assert response.status_code == 200
+    data = response.json()
+    assert data['workout_day'] == 'C'
+
+
