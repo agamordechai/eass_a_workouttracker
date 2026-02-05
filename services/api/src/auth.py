@@ -79,7 +79,7 @@ USERS_DB: dict[str, UserInDB] = {
         role=Role.ADMIN,
         disabled=False,
         # Password: "admin123" (hashed)
-        hashed_password="pbkdf2:sha256:260000$salt$8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
+        hashed_password="pbkdf2:sha256:260000$salt$ed7b1e49dcca0acbc7345e89064f424ca2447c8c9abe03e9a3dcfe1ba06b636b"
     ),
     "user": UserInDB(
         username="user",
@@ -87,7 +87,7 @@ USERS_DB: dict[str, UserInDB] = {
         role=Role.USER,
         disabled=False,
         # Password: "user123" (hashed)
-        hashed_password="pbkdf2:sha256:260000$salt$ee11cbb19052e40b07aac0ca060c23ee"
+        hashed_password="pbkdf2:sha256:260000$salt$d5b291478ff6d3bb8bf3671caa01fe1b5c3ad3126d4d66c28ff3ae3a7be3cf0f"
     ),
 }
 

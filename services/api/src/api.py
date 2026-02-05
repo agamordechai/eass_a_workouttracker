@@ -32,6 +32,7 @@ from services.api.src.auth import (
 from typing import Annotated
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from services.api.src.ratelimit import (
     get_rate_limit_key,
     rate_limit_exceeded_handler,
@@ -110,6 +111,9 @@ app.state.limiter = limiter
 
 # Add custom exception handler for rate limit exceeded
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+# Add SlowAPI middleware (initialises request.state.view_rate_limit for decorators)
+app.add_middleware(SlowAPIMiddleware)
 
 # Configure CORS
 app.add_middleware(

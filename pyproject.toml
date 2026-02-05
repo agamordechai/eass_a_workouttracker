@@ -29,6 +29,7 @@ dev = [
     "httpx>=0.27.0",
     "pytest-anyio>=0.0.0",
     "anyio>=4.0.0",
+    "schemathesis>=4.9.5",
 ]
 
 [build-system]
@@ -44,5 +45,6 @@ dev-dependencies = [
     "httpx>=0.27.0",
     "pytest-anyio>=0.0.0",
     "anyio>=4.0.0",
+    "schemathesis>=4.9.5",
 ]
 
