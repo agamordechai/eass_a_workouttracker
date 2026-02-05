@@ -4,7 +4,7 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
-import type { Exercise, CreateExerciseRequest, UpdateExerciseRequest } from '../types/exercise';
+import type { Exercise, CreateExerciseRequest, UpdateExerciseRequest, PaginatedExerciseResponse } from '../types/exercise';
 import type {
   ChatRequest,
   ChatResponse,
@@ -38,12 +38,37 @@ const aiCoachClient: AxiosInstance = axios.create({
   },
 });
 
+export interface ExerciseListParams {
+  page?: number;
+  page_size?: number;
+  sort_by?: string;
+  sort_order?: string;
+}
+
 /**
- * Fetch all exercises from the API.
+ * Fetch exercises with optional pagination and sorting.
  */
-export async function listExercises(): Promise<Exercise[]> {
-  const response = await client.get<Exercise[]>('/exercises');
+export async function listExercises(params?: ExerciseListParams): Promise<PaginatedExerciseResponse> {
+  const response = await client.get<PaginatedExerciseResponse>('/exercises', { params });
   return response.data;
+}
+
+/**
+ * Download all exercises as a CSV file.
+ */
+export async function exportExercisesCSV(): Promise<void> {
+  const response = await client.get('/exercises', {
+    params: { format: 'csv', page_size: 200 },
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(response.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'exercises.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /**

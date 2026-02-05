@@ -27,5 +27,12 @@ export interface UpdateExerciseRequest {
   workout_day?: string;
 }
 
+export interface PaginatedExerciseResponse {
+  page: number;
+  page_size: number;
+  total: number;
+  items: Exercise[];
+}
+
 export type FilterType = 'All' | 'Weighted Only' | 'Bodyweight Only';
 

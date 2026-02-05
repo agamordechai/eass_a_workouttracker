@@ -17,20 +17,15 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_SYSTEM_PYTHON=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    PATH="/app/.venv/bin:$PATH"
 
 # Install dependencies from pyproject.toml
 COPY services/worker/pyproject.toml ./pyproject.toml
-RUN uv sync --no-dev --no-install
-
-# Copy shared services module
 COPY services/__init__.py /app/services/
-
-# Copy scripts (needed for refresh.py imports)
 COPY scripts/refresh.py /app/scripts/
-
-# Copy worker service
 COPY services/worker/ /app/services/worker/
+RUN uv sync --no-dev --no-install-project
 
 # Expose health check port
 EXPOSE 8002

@@ -2,12 +2,15 @@
 
 This module defines the REST API endpoints for managing workout exercises.
 """
-from fastapi import FastAPI, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, HTTPException, Request, Response, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.middleware.base import RequestResponseEndpoint
 from contextlib import asynccontextmanager
-from typing import List, AsyncGenerator
+from typing import List, AsyncGenerator, Literal
 from datetime import datetime, timezone, timedelta
+import csv
+from io import StringIO
 import logging
 import time
 import uuid
@@ -218,15 +221,63 @@ def health_check() -> HealthResponse:
     )
 
 
-@app.get('/exercises', response_model=List[ExerciseResponse])
-@limiter.limit("120/minute")  # User-level read limit
-def read_exercises(request: Request, repository: RepositoryDep) -> List[ExerciseResponse]:
-    """Get all exercises from the database.
+_SORTABLE_COLUMNS = {"id", "name", "sets", "reps", "weight", "workout_day"}
 
-    Returns:
-        List[ExerciseResponse]: A list of all exercises with their details.
+
+@app.get('/exercises')
+@limiter.limit("120/minute")  # User-level read limit
+def read_exercises(
+    request: Request,
+    repository: RepositoryDep,
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=200, description="Items per page"),
+    sort_by: str = Query("id", description="Column to sort by"),
+    sort_order: Literal["asc", "desc"] = Query("asc", description="Sort direction"),
+    format: Literal["json", "csv"] = Query("json", description="Response format"),
+) -> Response:
+    """Get exercises with pagination, sorting, and optional CSV export.
+
+    Returns paginated JSON by default. Pass ?format=csv to download as CSV.
+    All responses include an X-Total-Count header with the total exercise count.
     """
-    return repository.get_all()
+    if sort_by not in _SORTABLE_COLUMNS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"sort_by must be one of: {sorted(_SORTABLE_COLUMNS)}"
+        )
+
+    items, total = repository.list_paginated(page, page_size, sort_by, sort_order)
+
+    if format == "csv":
+        buffer = StringIO()
+        writer = csv.DictWriter(
+            buffer,
+            fieldnames=["id", "name", "sets", "reps", "weight", "workout_day"]
+        )
+        writer.writeheader()
+        for item in items:
+            row = item.model_dump()
+            row["weight"] = row["weight"] if row["weight"] is not None else ""
+            writer.writerow(row)
+        buffer.seek(0)
+        return StreamingResponse(
+            iter([buffer.read()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": 'attachment; filename="exercises.csv"',
+                "X-Total-Count": str(total),
+            },
+        )
+
+    return JSONResponse(
+        content={
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "items": [item.model_dump() for item in items],
+        },
+        headers={"X-Total-Count": str(total)},
+    )
 
 
 @app.get('/exercises/{exercise_id}', response_model=ExerciseResponse)

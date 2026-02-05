@@ -58,7 +58,7 @@ def test_read_root(client: TestClient) -> None:
 
 
 def test_read_exercises(client: TestClient) -> None:
-    """Test getting all exercises.
+    """Test getting all exercises with pagination.
 
     Args:
         client (TestClient): The test client fixture.
@@ -66,12 +66,23 @@ def test_read_exercises(client: TestClient) -> None:
     response = client.get('/exercises')
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) > 0
-    assert 'id' in data[0]
-    assert 'name' in data[0]
-    assert 'sets' in data[0]
-    assert 'reps' in data[0]
+
+    # Assert paginated response structure
+    assert isinstance(data, dict)
+    assert 'page' in data
+    assert 'page_size' in data
+    assert 'total' in data
+    assert 'items' in data
+
+    # Assert items array and content
+    assert isinstance(data['items'], list)
+    assert data['total'] >= 0
+    if data['total'] > 0:
+        assert len(data['items']) > 0
+        assert 'id' in data['items'][0]
+        assert 'name' in data['items'][0]
+        assert 'sets' in data['items'][0]
+        assert 'reps' in data['items'][0]
 
 
 def test_read_exercise_by_id(client: TestClient) -> None:

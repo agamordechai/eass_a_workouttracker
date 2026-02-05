@@ -68,6 +68,14 @@ class ExerciseResponse(BaseModel):
     workout_day: str = Field(..., min_length=1, max_length=10, description="Workout day identifier (A-G for specific days, 'None' for daily exercises)")
 
 
+class PaginatedExerciseResponse(BaseModel):
+    """Paginated response wrapping a list of exercises."""
+    page: int = Field(..., ge=1, description="Current page number")
+    page_size: int = Field(..., ge=1, description="Items per page")
+    total: int = Field(..., ge=0, description="Total number of exercises across all pages")
+    items: list[ExerciseResponse] = Field(..., description="Exercises on this page")
+
+
 class ExerciseEditRequest(BaseModel):
     """Exercise edit request model for updating exercises.
 

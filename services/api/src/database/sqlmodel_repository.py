@@ -5,6 +5,7 @@ This replaces the raw SQL implementation with proper ORM patterns.
 """
 from typing import List, Optional
 from sqlmodel import Session, select
+from sqlalchemy import func
 
 from services.api.src.database.db_models import ExerciseTable
 from services.api.src.database.models import ExerciseResponse
@@ -37,6 +38,40 @@ class ExerciseRepository:
         statement = select(ExerciseTable)
         results = self.session.exec(statement).all()
         return [ExerciseResponse.model_validate(ex.model_dump()) for ex in results]
+
+    def list_paginated(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        sort_by: str = "id",
+        sort_order: str = "asc",
+    ) -> tuple[list[ExerciseResponse], int]:
+        """Retrieve paginated and sorted exercises.
+
+        Args:
+            page: Page number (1-indexed)
+            page_size: Number of items per page
+            sort_by: Column name to sort by
+            sort_order: 'asc' or 'desc'
+
+        Returns:
+            Tuple of (exercises for the page, total count)
+        """
+        total = self.session.execute(
+            select(func.count()).select_from(ExerciseTable)
+        ).scalar() or 0
+
+        column = getattr(ExerciseTable, sort_by)
+        order = column.desc() if sort_order == "desc" else column.asc()
+        statement = (
+            select(ExerciseTable)
+            .order_by(order)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        results = self.session.exec(statement).all()
+        items = [ExerciseResponse.model_validate(ex.model_dump()) for ex in results]
+        return items, total
 
     def get_by_id(self, exercise_id: int) -> Optional[ExerciseResponse]:
         """Retrieve a specific exercise by ID.

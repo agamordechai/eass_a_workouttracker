@@ -16,15 +16,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_SYSTEM_PYTHON=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    PATH="/app/.venv/bin:$PATH"
 
 # Install dependencies from pyproject.toml
 COPY pyproject.toml uv.lock ./
-RUN uv sync --no-dev --frozen --no-install
-
-# Copy API source code
 COPY services/__init__.py ./services/
 COPY services/api/ ./services/api/
+RUN uv sync --no-dev --frozen --no-install-project
 
 # Create directory for database
 RUN mkdir -p /app/data
@@ -33,4 +32,4 @@ RUN mkdir -p /app/data
 EXPOSE 8000
 
 # Run the app
-CMD ["uvicorn", "services.api.src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "services.api.src.api:app", "--host", "0.0.0.0", "--port", "8000"]

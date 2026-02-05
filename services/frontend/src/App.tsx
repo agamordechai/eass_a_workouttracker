@@ -33,8 +33,8 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      const data = await listExercises();
-      setExercises(data);
+      const data = await listExercises({ page_size: 200 });
+      setExercises(data.items);
     } catch (err) {
       setError(
         `Failed to connect to the API. Is the backend running?\n${

@@ -263,6 +263,49 @@ body {
   border-bottom: none;
 }
 
+.exercise-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.exercise-table th.sortable:hover {
+  color: var(--primary-color);
+}
+
+.exercise-table th.sort-active {
+  color: var(--primary-color);
+}
+
+.sort-indicator {
+  margin-left: 4px;
+}
+
+.filter-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.filter-info-row .filter-info {
+  margin-bottom: 0;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.page-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  min-width: 80px;
+  text-align: center;
+}
+
 .action-buttons {
   display: flex;
   gap: 8px;
