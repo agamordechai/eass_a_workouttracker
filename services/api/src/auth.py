@@ -2,8 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Annotated
 from enum import Enum
-import hashlib
-import secrets
+import bcrypt
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -71,63 +70,85 @@ class RegisterRequest(BaseModel):
 
 
 # Simulated user database (in production, use real database)
-# Passwords are hashed using SHA-256 with salt
+# Passwords are hashed using bcrypt with work factor 12
 USERS_DB: dict[str, UserInDB] = {
     "admin": UserInDB(
         username="admin",
         email="admin@workout.local",
         role=Role.ADMIN,
         disabled=False,
-        # Password: "admin123" (hashed)
-        hashed_password="pbkdf2:sha256:260000$salt$ed7b1e49dcca0acbc7345e89064f424ca2447c8c9abe03e9a3dcfe1ba06b636b"
+        # Password: "admin123" (bcrypt hashed, work factor 12)
+        hashed_password="$2b$12$CuUpHxsV8qcVbREi6pvgNuPzbZ8Vrrgj/tHa4A.ZaP0WltHTid6XC"
     ),
     "user": UserInDB(
         username="user",
         email="user@workout.local",
         role=Role.USER,
         disabled=False,
-        # Password: "user123" (hashed)
-        hashed_password="pbkdf2:sha256:260000$salt$d5b291478ff6d3bb8bf3671caa01fe1b5c3ad3126d4d66c28ff3ae3a7be3cf0f"
+        # Password: "user123" (bcrypt hashed, work factor 12)
+        hashed_password="$2b$12$QLfDeZ/G93xw5vWe8e2RpeoFVIcPe3Hl0gGXMZhVSEEhVnrA/04ym"
     ),
 }
 
 
-def hash_password(password: str, salt: Optional[str] = None) -> str:
-    """Hash a password using SHA-256 with salt.
+def hash_password(password: str, rounds: int = 12) -> str:
+    """Hash a password using bcrypt.
+
+    bcrypt is a purpose-built password hashing algorithm that:
+    - Is computationally expensive (resistant to brute-force attacks)
+    - Includes automatic salt generation
+    - Is memory-hard (resistant to GPU/ASIC attacks)
+    - Follows industry best practices for password storage
 
     Args:
-        password: Plain text password
-        salt: Optional salt (generated if not provided)
+        password: Plain text password to hash
+        rounds: bcrypt work factor (default: 12, range: 4-31)
+                Higher = more secure but slower. 12 = ~300ms per hash.
 
     Returns:
-        Hashed password string
-    """
-    if salt is None:
-        salt = secrets.token_hex(16)
+        bcrypt hash string (includes algorithm, cost, salt, and hash)
+        Format: $2b$<cost>$<22-char-salt><31-char-hash>
 
-    # Use PBKDF2-like format for clarity
-    hash_value = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
-    return f"pbkdf2:sha256:260000${salt}${hash_value}"
+    Example:
+        >>> hash_password("mypassword")
+        '$2b$12$EixZaYVK1fsbw1ZfbX3OXe.DX7H5FIZfJ5.M7Pz6...'
+    """
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt(rounds=rounds)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash.
+    """Verify a password against its bcrypt hash.
+
+    Uses constant-time comparison to prevent timing attacks.
 
     Args:
         plain_password: Plain text password to verify
-        hashed_password: Stored hashed password
+        hashed_password: Stored bcrypt hash
 
     Returns:
         True if password matches, False otherwise
+
+    Security notes:
+        - bcrypt handles timing-safe comparison internally
+        - Invalid hash formats return False (no exceptions raised)
+        - Works with hashes generated with any work factor
+
+    Example:
+        >>> hash = hash_password("mypassword")
+        >>> verify_password("mypassword", hash)
+        True
+        >>> verify_password("wrongpassword", hash)
+        False
     """
     try:
-        parts = hashed_password.split("$")
-        if len(parts) != 3:
-            return False
-        salt = parts[1]
-        expected_hash = hash_password(plain_password, salt)
-        return secrets.compare_digest(hashed_password, expected_hash)
+        password_bytes = plain_password.encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
     except Exception:
+        # Invalid hash format or other bcrypt errors
         return False
 
 

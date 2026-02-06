@@ -21,6 +21,8 @@ dependencies = [
     "slowapi>=0.1.9",
     "arq>=0.25.0",
     "logfire>=0.41.0",
+    "mcp[cli]>=1.1.0",
+    "passlib[bcrypt]>=1.7.4",
 ]
 
 [project.optional-dependencies]

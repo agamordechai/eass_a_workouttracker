@@ -41,6 +41,7 @@ from services.api.src.ratelimit import (
     rate_limit_exceeded_handler,
     get_ratelimit_settings
 )
+from services.api.src.etag import maybe_return_not_modified
 
 # Get application settings
 settings = get_settings()
@@ -269,15 +270,20 @@ def read_exercises(
             },
         )
 
-    return JSONResponse(
-        content={
-            "page": page,
-            "page_size": page_size,
-            "total": total,
-            "items": [item.model_dump() for item in items],
-        },
+    # JSON response with ETag support
+    payload = {
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "items": [item.model_dump() for item in items],
+    }
+    response = JSONResponse(
+        content=payload,
         headers={"X-Total-Count": str(total)},
     )
+
+    # Return 304 Not Modified if If-None-Match matches, or add ETag header
+    return maybe_return_not_modified(request, response, payload)
 
 
 @app.get('/exercises/{exercise_id}', response_model=ExerciseResponse)
