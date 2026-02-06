@@ -15,5 +15,27 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3.0",
+    "pytest-xdist>=3.5.0",
     "httpx>=0.27.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+# Test markers for organizing tests
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "redis: marks tests that require Redis (deselect with '-m \"not redis\"')",
+]
+
+# Performance optimizations
+addopts = [
+    "-ra",                    # Show summary of all test outcomes
+    "--strict-markers",       # Error on undefined markers
+    "--strict-config",        # Error on config issues
+    "--tb=short",             # Shorter tracebacks
 ]

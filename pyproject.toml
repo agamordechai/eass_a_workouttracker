@@ -48,5 +48,6 @@ dev-dependencies = [
     "pytest-anyio>=0.0.0",
     "anyio>=4.0.0",
     "schemathesis>=4.9.5",
+    "pytest-xdist>=3.8.0",
 ]
 

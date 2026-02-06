@@ -6,7 +6,10 @@ import pytest
 import os
 from typing import Generator
 from fastapi.testclient import TestClient
-from services.api.src.api import app
+from services.api.src.api import app, limiter
+
+# Disable rate limiter for tests (requires Redis which may not be available)
+limiter.enabled = False
 
 
 @pytest.fixture(scope='function')
@@ -395,13 +398,25 @@ def test_exercise_response_includes_workout_day(client: TestClient) -> None:
     Args:
         client (TestClient): The test client fixture.
     """
+    # First create an exercise to ensure we have data
+    new_exercise = {
+        'name': 'Test Exercise',
+        'sets': 3,
+        'reps': 10,
+        'workout_day': 'A'
+    }
+    client.post('/exercises', json=new_exercise)
+
     response = client.get('/exercises')
     assert response.status_code == 200
-    exercises = response.json()
-    assert len(exercises) > 0
+    data = response.json()
+
+    # Response is now paginated
+    assert 'items' in data
+    assert len(data['items']) > 0
 
     # All exercises should have workout_day field
-    for exercise in exercises:
+    for exercise in data['items']:
         assert 'workout_day' in exercise
 
 

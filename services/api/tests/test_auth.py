@@ -18,20 +18,26 @@ from services.api.src.auth import (
     SECRET_KEY,
     ALGORITHM
 )
-from services.api.src.api import app
+from services.api.src.api import app, limiter
+
+# Disable rate limiter for tests (requires Redis which may not be available)
+limiter.enabled = False
 
 
 class TestPasswordHashing:
     """Tests for password hashing functions."""
 
     def test_hash_password_creates_hash(self):
-        """Test that hash_password creates a valid hash."""
+        """Test that hash_password creates a valid bcrypt hash."""
         password = "mysecretpassword"
         hashed = hash_password(password)
 
-        assert hashed.startswith("pbkdf2:sha256:")
+        # bcrypt hashes start with $2b$ (version) followed by cost factor
+        assert hashed.startswith("$2b$")
         assert "$" in hashed
         assert password not in hashed
+        # Verify it's a valid bcrypt hash (60 characters)
+        assert len(hashed) == 60
 
     def test_hash_password_different_each_time(self):
         """Test that hashing same password twice gives different hashes (salt)."""
@@ -42,15 +48,19 @@ class TestPasswordHashing:
         # Different salts should produce different hashes
         assert hash1 != hash2
 
-    def test_hash_password_with_explicit_salt(self):
-        """Test hashing with explicit salt is deterministic."""
+    def test_hash_password_with_custom_rounds(self):
+        """Test hashing with custom work factor."""
         password = "mysecretpassword"
-        salt = "testsalt123"
 
-        hash1 = hash_password(password, salt)
-        hash2 = hash_password(password, salt)
+        # Use lower rounds for faster testing
+        hash1 = hash_password(password, rounds=4)
+        hash2 = hash_password(password, rounds=4)
 
-        assert hash1 == hash2
+        # Both should be valid bcrypt hashes
+        assert hash1.startswith("$2b$04$")  # Cost factor 4
+        assert hash2.startswith("$2b$04$")
+        # But different due to random salts
+        assert hash1 != hash2
 
     def test_verify_password_correct(self):
         """Test verifying correct password."""

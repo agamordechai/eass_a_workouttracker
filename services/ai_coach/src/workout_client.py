@@ -61,10 +61,17 @@ class WorkoutAPIClient:
         """
         try:
             client = await self._get_client()
-            response = await client.get("/exercises")
+            # Fetch with large page_size to get all exercises (API max is 200)
+            response = await client.get("/exercises?page_size=200")
             response.raise_for_status()
             data = response.json()
-            return [ExerciseFromAPI(**ex) for ex in data]
+
+            # API returns paginated response: {'items': [...], 'page': 1, 'page_size': 20, 'total': N}
+            if isinstance(data, dict) and 'items' in data:
+                return [ExerciseFromAPI(**ex) for ex in data['items']]
+            else:
+                # Fallback for legacy non-paginated response
+                return [ExerciseFromAPI(**ex) for ex in data]
         except Exception as e:
             logger.error(f"Failed to fetch exercises: {e}")
             return []

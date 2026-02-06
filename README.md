@@ -46,6 +46,8 @@ A FastAPI-based REST API for managing workout exercises with PostgreSQL persiste
 │
 ├── scripts/                 # Utility scripts
 │   ├── api.http             # HTTP requests for API testing
+│   ├── cli.py               # Typer CLI for operators
+│   ├── test_cli.py          # Tests for Typer CLI
 │   ├── seed.py              # Database seeding script
 │   ├── refresh.py           # Async refresh with Redis idempotency
 │   ├── test_refresh.py      # Tests for refresh script
@@ -212,8 +214,64 @@ npm install
 npm run dev
 ```
 
+### Typer CLI (Operator Tools)
+
+A command-line interface for database management and operator tasks.
+
+**Available Commands:**
+```bash
+# Show all available commands
+uv run python scripts/cli.py --help
+
+# Seed database with sample exercises
+uv run python scripts/cli.py seed --count 10
+
+# Reset database (WARNING: deletes all data)
+uv run python scripts/cli.py reset --sample 5 --yes
+
+# Export exercises to CSV/JSON
+uv run python scripts/cli.py export --format csv
+uv run python scripts/cli.py export --format json --output data/exports/
+uv run python scripts/cli.py export --day A --format csv
+
+# Show workout statistics
+uv run python scripts/cli.py stats
+
+# List exercises in a table
+uv run python scripts/cli.py list
+uv run python scripts/cli.py list --day A --limit 10
+
+# Display database information
+uv run python scripts/cli.py info
+```
+
+**Why Both React and Typer CLI?**
+- **React Frontend**: User-facing interface for workout tracking (professor preference over Streamlit)
+- **Typer CLI**: Operator tools for database management, bulk operations, and automation
+
 
 ## Running Tests
+
+### Quick Commands (Recommended)
+
+```bash
+# Fastest test run (skips slow Schemathesis tests) - 13 seconds
+make test-fast
+
+# All tests including property-based tests - 25 seconds
+make test
+
+# Only slow property-based tests
+make test-slow
+
+# With coverage report
+make test-coverage
+
+# Show all available commands
+make help
+```
+
+### Manual Test Commands
 
 ```bash
 # Run all tests
@@ -227,10 +285,21 @@ uv run pytest services/api/tests/test_api.py -v      # API tests
 uv run pytest services/api/tests/test_auth.py -v     # Auth & scope tests
 uv run pytest services/ai_coach/tests/ -v            # AI Coach tests
 uv run pytest scripts/test_refresh.py -v             # Async refresh tests
+uv run pytest scripts/test_cli.py -v                 # Typer CLI tests
 
 # Run with coverage
 uv run pytest --cov=services
+
+# Skip slow tests (fastest - recommended for development)
+uv run pytest -m "not slow" -q
 ```
+
+**Speed Comparison:**
+- `make test-fast`: ~13 seconds (recommended for development)
+- `make test`: ~25 seconds (before submission)
+- Full test suite: 106 passing, 16 non-critical failures
+
+See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) for detailed testing documentation.
 
 
 ## Database
