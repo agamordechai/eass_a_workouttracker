@@ -15,8 +15,8 @@ export function Layout() {
       {/* Body */}
       <div className="flex">
         <Sidebar />
-        <main className="flex-1 min-h-[calc(100vh-3rem)] pb-24 lg:pb-6">
-          <div className="max-w-5xl mx-auto px-4 py-4 lg:px-6 lg:py-6">
+        <main className="flex-1 min-h-[calc(100vh-3rem)]">
+          <div className="max-w-5xl mx-auto px-4 py-4 pb-32 lg:px-6 lg:py-6 lg:pb-6">
             <Outlet />
           </div>
         </main>
