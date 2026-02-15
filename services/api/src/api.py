@@ -9,6 +9,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Literal, Annotated
 from datetime import datetime, timezone, timedelta
+from sqlmodel import Session
 import csv
 from io import StringIO
 import logging
@@ -27,6 +28,7 @@ from services.api.src.auth import (
     RefreshRequest,
     RegisterRequest,
     EmailLoginRequest,
+    UpdateProfileRequest,
     UserResponse,
     verify_google_token,
     create_access_token,
@@ -632,6 +634,59 @@ async def get_me(
         picture_url=current_user.picture_url,
         role=current_user.role,
     )
+
+
+@app.patch('/auth/me', response_model=UserResponse, tags=["Authentication"])
+@limiter.limit(lambda: ratelimit_settings.auth_limit)
+async def update_me(
+    request: Request,
+    update_data: UpdateProfileRequest,
+    current_user: Annotated[UserTable, Depends(get_current_user)],
+    session: Session = Depends(get_session),
+) -> UserResponse:
+    """Update current authenticated user's profile.
+
+    Args:
+        update_data: Profile fields to update.
+        current_user: Current user from JWT token.
+        session: Database session.
+
+    Returns:
+        Updated user details.
+    """
+    if update_data.name is not None:
+        current_user.name = update_data.name
+
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        picture_url=current_user.picture_url,
+        role=current_user.role,
+    )
+
+
+@app.delete('/auth/me', status_code=status.HTTP_204_NO_CONTENT, tags=["Authentication"])
+@limiter.limit(lambda: ratelimit_settings.auth_limit)
+async def delete_me(
+    request: Request,
+    current_user: Annotated[UserTable, Depends(get_current_user)],
+    session: Session = Depends(get_session),
+) -> None:
+    """Permanently delete current authenticated user's account.
+
+    This action is irreversible. All user data will be removed.
+
+    Args:
+        current_user: Current user from JWT token.
+        session: Database session.
+    """
+    session.delete(current_user)
+    session.commit()
 
 
 @app.get('/admin/users', tags=["Admin"])

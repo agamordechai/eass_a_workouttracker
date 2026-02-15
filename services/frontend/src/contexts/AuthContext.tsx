@@ -3,7 +3,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { googleLogin, loginEmail, registerEmail, getCurrentUser } from '../api/client';
+import { googleLogin, loginEmail, registerEmail, getCurrentUser, updateProfile as updateProfileApi, deleteAccount as deleteAccountApi } from '../api/client';
 import type { User } from '../types/auth';
 
 interface AuthContextType {
@@ -14,6 +14,8 @@ interface AuthContextType {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   register: (email: string, name: string, password: string) => Promise<void>;
   logout: () => void;
+  updateProfile: (data: { name?: string }) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,6 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await storeTokensAndLoadUser(tokens);
   }, [storeTokensAndLoadUser]);
 
+  const updateProfile = useCallback(async (data: { name?: string }) => {
+    const updatedUser = await updateProfileApi(data);
+    setUser(updatedUser);
+  }, []);
+
+  const deleteAccount = useCallback(async () => {
+    await deleteAccountApi();
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    setUser(null);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -79,6 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithEmail,
         register,
         logout,
+        updateProfile,
+        deleteAccount,
       }}
     >
       {children}

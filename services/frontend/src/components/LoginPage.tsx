@@ -1,38 +1,99 @@
-import { useState } from 'react';
-import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { validateEmail } from '../utils/emailValidation';
 import axios from 'axios';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+        };
+      };
+    };
+  }
+}
 
 export default function LoginPage() {
   const { login, loginWithEmail, register } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const loginRef = useRef(login);
 
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
-    if (!credentialResponse.credential) {
-      setError('No credential received from Google');
-      return;
-    }
-    try {
-      setError(null);
-      await login(credentialResponse.credential);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
-    }
-  };
+  // Keep the login function reference up to date
+  useEffect(() => {
+    loginRef.current = login;
+  }, [login]);
 
-  const handleGoogleError = () => {
-    setError('Google Sign-In failed. Please try again.');
-  };
+  useEffect(() => {
+    // Load Google Identity Services script with English locale
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client?hl=en';
+    script.async = true;
+    script.defer = true;
+
+    const initializeGoogle = () => {
+      if (window.google && googleButtonRef.current) {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: async (response: { credential: string }) => {
+            try {
+              await loginRef.current(response.credential);
+            } catch (err) {
+              console.error('Google login failed:', err);
+            }
+          },
+        });
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: 'outline',
+          size: 'large',
+          shape: 'rectangular',
+          text: 'signin_with',
+          width: 300,
+          locale: 'en',
+        });
+      }
+    };
+
+    script.onload = initializeGoogle;
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setEmailError(null);
+    setEmailSuggestion(null);
+
+    // Validate email format (especially for registration)
+    if (isRegister) {
+      const emailValidation = validateEmail(email);
+      if (!emailValidation.isValid) {
+        setEmailError(emailValidation.error || 'Invalid email');
+        if (emailValidation.suggestion) {
+          setEmailSuggestion(emailValidation.suggestion);
+        }
+        return;
+      }
+    }
+
     if (isRegister && password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -74,7 +135,39 @@ export default function LoginPage() {
 
           {/* Form */}
           <form className="space-y-3" onSubmit={handleEmailSubmit}>
-            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" className="input" />
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailError(null);
+                  setEmailSuggestion(null);
+                }}
+                required
+                autoComplete="email"
+                className={`input ${emailError ? 'border-danger' : ''}`}
+              />
+              {emailError && (
+                <div className="mt-1">
+                  <p className="text-danger text-xs">{emailError}</p>
+                  {emailSuggestion && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail(emailSuggestion);
+                        setEmailError(null);
+                        setEmailSuggestion(null);
+                      }}
+                      className="text-xs text-primary hover:underline mt-1"
+                    >
+                      Use {emailSuggestion}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             {isRegister && (
               <input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" className="input" />
             )}
@@ -93,7 +186,7 @@ export default function LoginPage() {
           <p className="text-center text-sm text-text-muted">
             {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button
-              onClick={() => { setIsRegister(!isRegister); setError(null); setConfirmPassword(''); }}
+              onClick={() => { setIsRegister(!isRegister); setError(null); setEmailError(null); setEmailSuggestion(null); setConfirmPassword(''); }}
               className="text-link hover:underline font-medium"
             >
               {isRegister ? 'Sign in' : 'Register'}
@@ -109,15 +202,7 @@ export default function LoginPage() {
 
           {/* Google */}
           <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              theme="filled_blue"
-              size="large"
-              shape="rectangular"
-              text="signin_with"
-              width="300"
-            />
+            <div ref={googleButtonRef}></div>
           </div>
 
           {/* Error */}

@@ -32,8 +32,7 @@ export function ApiKeySettings() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-text-secondary">
-        Enter your Anthropic API key to use the AI Coach. Your key is stored
-        locally in your browser and sent directly to the backend per-request.
+        Enter your Anthropic API key to use the AI Coach.
       </p>
 
       {savedKey ? (

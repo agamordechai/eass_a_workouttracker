@@ -65,7 +65,7 @@ export function Layout() {
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={handleCloseSidebar} />
         <main className="flex-1 min-h-[calc(100vh-3rem)]">
-          <div className="max-w-2xl mx-auto px-4 py-4 pb-5 lg:px-5 lg:py-5">
+          <div className="w-full mx-auto px-4 py-4 pb-5 lg:px-8 lg:py-5">
             <Outlet />
           </div>
         </main>

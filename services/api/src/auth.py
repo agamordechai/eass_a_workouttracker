@@ -10,7 +10,7 @@ from enum import Enum
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlmodel import Session
 import jwt
 from google.oauth2 import id_token as google_id_token
@@ -85,11 +85,43 @@ class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Display name")
     password: str = Field(..., min_length=8, max_length=128, description="Password (min 8 characters)")
 
+    @field_validator('email')
+    @classmethod
+    def validate_email_domain(cls, v: str) -> str:
+        """Validate email domain and check for common typos."""
+        domain = v.split('@')[1].lower()
+
+        # Common domain typos
+        typos = {
+            'gmial.com': 'gmail.com', 'gmaik.com': 'gmail.com', 'gmal.com': 'gmail.com',
+            'gmail.co': 'gmail.com', 'gmail.cm': 'gmail.com', 'gmail.con': 'gmail.com',
+            'gmai.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gnail.com': 'gmail.com',
+            'yaho.com': 'yahoo.com', 'yahoo.co': 'yahoo.com', 'yahoo.con': 'yahoo.com',
+            'hotmal.com': 'hotmail.com', 'hotmail.co': 'hotmail.com', 'hotmail.con': 'hotmail.com',
+            'outlok.com': 'outlook.com', 'outlook.co': 'outlook.com', 'outlook.con': 'outlook.com',
+            'icloud.co': 'icloud.com', 'icloud.con': 'icloud.com',
+        }
+
+        if domain in typos:
+            suggestion = v.replace(domain, typos[domain])
+            raise ValueError(f"Invalid email domain. Did you mean {suggestion}?")
+
+        # Check for suspicious TLDs
+        if domain.endswith(('.con', '.cm', '.vom', '.cpm')):
+            raise ValueError("Invalid email domain. Please check your email address.")
+
+        return v
+
 
 class EmailLoginRequest(BaseModel):
     """Email/password login request model."""
     email: EmailStr = Field(..., description="User email address")
     password: str = Field(..., description="User password")
+
+
+class UpdateProfileRequest(BaseModel):
+    """Profile update request model."""
+    name: str | None = Field(None, min_length=1, max_length=255, description="Display name")
 
 
 class UserResponse(BaseModel):

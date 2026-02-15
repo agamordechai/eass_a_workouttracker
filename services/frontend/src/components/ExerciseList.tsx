@@ -185,7 +185,7 @@ export function ExerciseList({ exercises, onEdit, onCreateClick }: ExerciseListP
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-sm font-bold text-primary">Create Exercise</h3>
                 <p className="text-xs text-text-secondary mt-0.5">Add a new exercise to your routine</p>
               </div>

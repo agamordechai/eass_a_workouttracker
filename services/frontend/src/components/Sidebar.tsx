@@ -33,7 +33,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4">
+        <nav className="flex-1 flex flex-col gap-2 p-4 pt-6">
           {NAV_ITEMS.map(({ to, label, icon }) => (
             <NavLink
               key={to}
@@ -41,7 +41,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               end={to === '/'}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                `flex items-center gap-4 px-4 py-3 rounded-xl text-base font-medium transition-colors ${
                   isActive
                     ? 'bg-surface-light text-text-primary border-l-[3px] border-primary'
                     : 'text-text-muted hover:bg-surface-hover hover:text-text-secondary'
@@ -52,16 +52,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               {label}
             </NavLink>
           ))}
-
-          {/* Divider */}
-          <div className="my-3 border-t border-border" />
-
-          <div className="px-3 py-1">
-            <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Info</span>
-          </div>
-          <div className="px-3 py-1.5 text-xs text-text-muted">
-            Track your exercises, get AI coaching, and monitor progress.
-          </div>
         </nav>
 
         {user && (

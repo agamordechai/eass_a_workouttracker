@@ -122,6 +122,15 @@ export async function getCurrentUser(): Promise<User> {
   return response.data;
 }
 
+export async function updateProfile(data: { name?: string }): Promise<User> {
+  const response = await client.patch<User>('/auth/me', data);
+  return response.data;
+}
+
+export async function deleteAccount(): Promise<void> {
+  await client.delete('/auth/me');
+}
+
 // ---------- Exercise API functions ----------
 
 export interface ExerciseListParams {
