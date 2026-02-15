@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-import LoginPage from './components/LoginPage';
-import { Layout } from './components/Layout';
+import LoginPage from './components/auth/LoginPage';
+import { Layout } from './components/layout/Layout';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import DashboardPage from './pages/DashboardPage';
 import CoachPage from './pages/CoachPage';
