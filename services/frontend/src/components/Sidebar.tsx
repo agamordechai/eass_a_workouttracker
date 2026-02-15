@@ -7,49 +7,82 @@ const NAV_ITEMS = [
   { to: '/settings', label: 'Settings', icon: settingsIcon },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user } = useAuth();
 
   return (
-    <aside className="hidden lg:flex flex-col w-56 bg-surface/50 backdrop-blur-xl border-r border-border/80 h-[calc(100vh-3rem)] sticky top-12">
-      <nav className="flex-1 flex flex-col gap-1 p-3 pt-5">
-        {NAV_ITEMS.map(({ to, label, icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-medium transition-all duration-200 ${
-                isActive
-                  ? 'bg-primary-muted text-primary'
-                  : 'text-text-muted hover:bg-surface-light hover:text-text-secondary'
-              }`
-            }
-          >
-            {icon()}
-            {label}
-          </NavLink>
-        ))}
-      </nav>
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onClose}
+        />
+      )}
 
-      {user && (
-        <div className="p-3 border-t border-border/80">
-          <div className="flex items-center gap-3 px-2 py-2">
-            {user.picture_url ? (
-              <img src={user.picture_url} alt="" className="w-8 h-8 rounded-full ring-1 ring-border" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-primary-muted flex items-center justify-center text-primary text-xs font-bold">
-                {user.name?.[0]?.toUpperCase() || '?'}
+      <aside
+        className={`
+          fixed top-12 left-0 z-50 h-[calc(100vh-3rem)] w-56 bg-surface border-r border-border flex flex-col
+          transition-transform duration-200
+          lg:sticky lg:z-auto
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <nav className="flex-1 flex flex-col gap-0.5 p-3 pt-4">
+          {NAV_ITEMS.map(({ to, label, icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-surface-light text-text-primary border-l-[3px] border-primary'
+                    : 'text-text-muted hover:bg-surface-hover hover:text-text-secondary'
+                }`
+              }
+            >
+              {icon()}
+              {label}
+            </NavLink>
+          ))}
+
+          {/* Divider */}
+          <div className="my-3 border-t border-border" />
+
+          <div className="px-3 py-1">
+            <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Info</span>
+          </div>
+          <div className="px-3 py-1.5 text-xs text-text-muted">
+            Track your exercises, get AI coaching, and monitor progress.
+          </div>
+        </nav>
+
+        {user && (
+          <div className="p-3 border-t border-border">
+            <div className="flex items-center gap-3 px-2 py-2">
+              {user.picture_url ? (
+                <img src={user.picture_url} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-surface-light border border-border flex items-center justify-center text-text-secondary text-xs font-bold">
+                  {user.name?.[0]?.toUpperCase() || '?'}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-text-primary truncate">{user.name}</p>
+                <p className="text-[11px] text-text-muted truncate">{user.email}</p>
               </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text-primary truncate">{user.name}</p>
-              <p className="text-[11px] text-text-muted truncate">{user.email}</p>
             </div>
           </div>
-        </div>
-      )}
-    </aside>
+        )}
+      </aside>
+    </>
   );
 }
 

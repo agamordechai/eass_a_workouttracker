@@ -8,8 +8,8 @@ const TABS = [
 
 export function BottomTabs() {
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/70 backdrop-blur-xl border-t border-border/80 pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around h-[52px]">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-center justify-around h-12">
         {TABS.map(({ to, label, icon }) => (
           <NavLink
             key={to}

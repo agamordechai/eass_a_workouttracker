@@ -5,9 +5,10 @@ interface EditExerciseModalProps {
   exercise: Exercise;
   onSubmit: (exerciseId: number, data: UpdateExerciseRequest) => Promise<void>;
   onCancel: () => void;
+  onDelete?: (exerciseId: number) => void;
 }
 
-export function EditExerciseModal({ exercise, onSubmit, onCancel }: EditExerciseModalProps) {
+export function EditExerciseModal({ exercise, onSubmit, onCancel, onDelete }: EditExerciseModalProps) {
   const [name, setName] = useState(exercise.name);
   const [sets, setSets] = useState(exercise.sets);
   const [reps, setReps] = useState(exercise.reps);
@@ -15,6 +16,7 @@ export function EditExerciseModal({ exercise, onSubmit, onCancel }: EditExercise
   const [workoutDay, setWorkoutDay] = useState(exercise.workout_day);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     setName(exercise.name);
@@ -62,11 +64,11 @@ export function EditExerciseModal({ exercise, onSubmit, onCancel }: EditExercise
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md" onClick={onCancel}>
-      <div className="card w-full max-w-lg animate-fadeIn shadow-2xl shadow-black/40" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onCancel}>
+      <div className="card w-full max-w-lg animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-lg font-semibold text-text-primary">Update Exercise</h2>
+            <h2 className="text-sm font-bold text-text-primary">Update Exercise</h2>
             <p className="text-text-secondary text-xs mt-0.5">
               Updating: <span className="font-medium text-text-primary">{exercise.name}</span> (ID: {exercise.id})
             </p>
@@ -79,7 +81,7 @@ export function EditExerciseModal({ exercise, onSubmit, onCancel }: EditExercise
         </div>
 
         {error && (
-          <div className="bg-danger/10 border-[1.5px] border-danger/20 text-danger text-sm rounded-xl px-4 py-3 mb-4">
+          <div className="bg-danger/10 border border-danger/20 text-danger text-xs rounded px-3 py-2 mb-3">
             {error}
           </div>
         )}
@@ -118,13 +120,34 @@ export function EditExerciseModal({ exercise, onSubmit, onCancel }: EditExercise
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-1">
             <button type="submit" className="btn btn-primary flex-1" disabled={isSubmitting}>
               {isSubmitting ? 'Updating...' : 'Update Exercise'}
             </button>
             <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={isSubmitting}>
               Cancel
             </button>
+            {onDelete && (
+              confirmDelete ? (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => { onDelete(exercise.id); onCancel(); }}
+                  disabled={isSubmitting}
+                >
+                  Confirm Delete
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={isSubmitting}
+                >
+                  Delete
+                </button>
+              )
+            )}
           </div>
         </form>
       </div>
