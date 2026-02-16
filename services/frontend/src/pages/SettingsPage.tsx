@@ -1,18 +1,21 @@
-import { ProfileCard } from '../components/settings/ProfileCard';
-import { ApiKeyCard } from '../components/settings/ApiKeyCard';
-import { DangerZone } from '../components/settings/DangerZone';
+import { PageShell } from '../components/ui/PageShell';
+import { ProfileSection } from '../components/settings/ProfileSection';
+import { ApiKeySection } from '../components/settings/ApiKeySection';
+import { AccountSection } from '../components/settings/AccountSection';
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-6">
+    <PageShell>
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Settings</h1>
-        <p className="text-text-secondary text-sm mt-1">Manage your account and preferences</p>
+        <h1 className="text-2xl font-bold text-chalk">Settings</h1>
+        <p className="text-steel text-sm mt-1">Manage your account and preferences</p>
       </div>
 
-      <ProfileCard />
-      <ApiKeyCard />
-      <DangerZone />
-    </div>
+      <div className="card mt-6 p-0 px-4">
+        <ProfileSection />
+        <ApiKeySection />
+        <AccountSection />
+      </div>
+    </PageShell>
   );
 }

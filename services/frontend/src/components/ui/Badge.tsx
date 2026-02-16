@@ -1,17 +1,17 @@
-import { clsx } from 'clsx';
 import { getDayColor } from '../../lib/constants';
 
 interface BadgeProps {
   day: string;
-  className?: string;
+  size?: 'sm' | 'md';
 }
 
-export function DayBadge({ day, className }: BadgeProps) {
-  const colors = getDayColor(day);
-  const label = day === 'None' ? 'Daily' : `Day ${day}`;
+export function Badge({ day, size = 'sm' }: BadgeProps) {
+  const color = getDayColor(day);
+  const sizeClass = size === 'md' ? 'px-3 py-1 text-xs' : 'px-2 py-0.5 text-[11px]';
+
   return (
-    <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border', colors.bg, colors.text, colors.border, className)}>
-      {label}
+    <span className={`inline-flex items-center rounded-lg font-semibold ${sizeClass} ${color.bg} ${color.text} border ${color.border}`}>
+      {day}
     </span>
   );
 }

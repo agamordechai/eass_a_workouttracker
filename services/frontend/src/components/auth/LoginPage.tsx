@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dumbbell } from 'lucide-react';
+import { Flame } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateEmail } from '../../utils/emailValidation';
 import axios from 'axios';
@@ -116,142 +116,127 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left gradient panel (desktop only) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-violet-600/20 via-purple-600/10 to-background items-center justify-center p-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center"
-        >
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-violet-500/30">
-            <Dumbbell size={36} className="text-white" />
-          </div>
-          <h2 className="text-3xl font-bold text-text-primary mb-3">Workout Tracker</h2>
-          <p className="text-text-secondary text-lg max-w-sm">
-            Track your exercises, get AI coaching, and reach your fitness goals.
-          </p>
-        </motion.div>
-      </div>
+    <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
+      {/* Animated gradient mesh background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-ember/8 via-background to-ember-dark/5 animate-gradient-mesh" />
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-ember/5 rounded-full blur-3xl" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-ember-dark/5 rounded-full blur-3xl" />
 
-      {/* Right form panel */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="w-full max-w-sm"
-        >
-          <div className="card space-y-6 p-6">
-            {/* Logo + title (mobile) */}
-            <div className="text-center lg:text-left">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mx-auto lg:mx-0 mb-4 shadow-lg shadow-violet-500/20">
-                <Dumbbell size={24} className="text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-text-primary">
-                {isRegister ? 'Create an account' : 'Welcome back'}
-              </h1>
-              <p className="text-text-muted text-sm mt-1">
-                {isRegister ? 'Start your fitness journey' : 'Sign in to track your workouts'}
-              </p>
+      {/* Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative w-full max-w-sm mx-4"
+      >
+        <div className="card space-y-6 p-6">
+          {/* Logo + title */}
+          <div className="text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-ember to-ember-dark flex items-center justify-center mx-auto mb-4 shadow-lg shadow-ember/30">
+              <Flame size={24} className="text-white" />
             </div>
-
-            {/* Form */}
-            <form className="space-y-3" onSubmit={handleEmailSubmit}>
-              <div>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setEmailError(null);
-                    setEmailSuggestion(null);
-                  }}
-                  required
-                  autoComplete="email"
-                  className={`input ${emailError ? 'border-danger focus:border-danger' : ''}`}
-                />
-                <AnimatePresence>
-                  {emailError && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-1"
-                    >
-                      <p className="text-danger text-xs">{emailError}</p>
-                      {emailSuggestion && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEmail(emailSuggestion);
-                            setEmailError(null);
-                            setEmailSuggestion(null);
-                          }}
-                          className="text-xs text-primary hover:underline mt-1"
-                        >
-                          Use {emailSuggestion}
-                        </button>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              {isRegister && (
-                <input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" className="input" />
-              )}
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={isRegister ? 'new-password' : 'current-password'} className="input" />
-              {isRegister && (
-                <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} autoComplete="new-password" className="input" />
-              )}
-              <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
-                {submitting
-                  ? (isRegister ? 'Creating account...' : 'Signing in...')
-                  : (isRegister ? 'Create account' : 'Sign in')}
-              </button>
-            </form>
-
-            {/* Toggle */}
-            <p className="text-center text-sm text-text-muted">
-              {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-              <button
-                onClick={() => { setIsRegister(!isRegister); setError(null); setEmailError(null); setEmailSuggestion(null); setConfirmPassword(''); }}
-                className="text-primary hover:underline font-medium"
-              >
-                {isRegister ? 'Sign in' : 'Register'}
-              </button>
+            <h1 className="text-xl font-bold text-chalk">
+              {isRegister ? 'Create an account' : 'Welcome back'}
+            </h1>
+            <p className="text-steel text-sm mt-1">
+              {isRegister ? 'Start your training journey' : 'Sign in to the Forge'}
             </p>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-text-muted text-xs uppercase tracking-wider">or</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            {/* Google */}
-            <div className="flex justify-center">
-              <div ref={googleButtonRef}></div>
-            </div>
-
-            {/* Error */}
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="bg-danger/10 border border-danger/20 text-danger text-xs rounded-lg px-3 py-2"
-                >
-                  {error}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
-        </motion.div>
-      </div>
+
+          {/* Form */}
+          <form className="space-y-3" onSubmit={handleEmailSubmit}>
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailError(null);
+                  setEmailSuggestion(null);
+                }}
+                required
+                autoComplete="email"
+                className={`input ${emailError ? 'border-danger!' : ''}`}
+              />
+              <AnimatePresence>
+                {emailError && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-1"
+                  >
+                    <p className="text-danger text-xs">{emailError}</p>
+                    {emailSuggestion && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmail(emailSuggestion);
+                          setEmailError(null);
+                          setEmailSuggestion(null);
+                        }}
+                        className="text-xs text-ember hover:underline mt-1"
+                      >
+                        Use {emailSuggestion}
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            {isRegister && (
+              <input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" className="input" />
+            )}
+            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete={isRegister ? 'new-password' : 'current-password'} className="input" />
+            {isRegister && (
+              <input type="password" placeholder="Confirm Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} autoComplete="new-password" className="input" />
+            )}
+            <button type="submit" className="btn btn-ember w-full" disabled={submitting}>
+              {submitting
+                ? (isRegister ? 'Creating account...' : 'Signing in...')
+                : (isRegister ? 'Create account' : 'Sign in')}
+            </button>
+          </form>
+
+          {/* Toggle */}
+          <p className="text-center text-sm text-steel">
+            {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              onClick={() => { setIsRegister(!isRegister); setError(null); setEmailError(null); setEmailSuggestion(null); setConfirmPassword(''); }}
+              className="text-ember hover:underline font-medium"
+            >
+              {isRegister ? 'Sign in' : 'Register'}
+            </button>
+          </p>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-steel text-xs uppercase tracking-wider">or</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          {/* Google */}
+          <div className="flex justify-center">
+            <div ref={googleButtonRef}></div>
+          </div>
+
+          {/* Error */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="bg-danger/10 border border-danger/20 text-danger text-xs rounded-xl px-3 py-2"
+              >
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
     </div>
   );
 }
