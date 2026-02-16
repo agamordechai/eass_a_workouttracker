@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Flame, Home, Bot, Settings } from 'lucide-react';
+import { Flame, Home, Bot, Settings, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMemo } from 'react';
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: Home },
   { to: '/coach', label: 'Coach', icon: Bot },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -11,6 +12,13 @@ const NAV_ITEMS = [
 
 export function TopBar() {
   const { user } = useAuth();
+
+  const navItems = useMemo(() => {
+    if (user?.role === 'admin') {
+      return [...BASE_NAV_ITEMS, { to: '/admin', label: 'Admin', icon: Shield }];
+    }
+    return BASE_NAV_ITEMS;
+  }, [user?.role]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -25,7 +33,7 @@ export function TopBar() {
 
         {/* Desktop nav */}
         <nav className="hidden lg:flex items-center gap-1">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

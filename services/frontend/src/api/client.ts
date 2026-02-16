@@ -14,6 +14,7 @@ import type {
   AICoachHealthResponse,
 } from '../types/aiCoach';
 import type { User, AuthTokens } from '../types/auth';
+import type { AdminUser, AdminStats } from '../types/admin';
 
 // In development, Vite proxies /api to localhost:8000
 // In production, configure API_BASE_URL environment variable
@@ -206,6 +207,30 @@ export async function deleteExercise(exerciseId: number): Promise<void> {
 export async function seedExercises(): Promise<{ seeded: number }> {
   const response = await client.post<{ seeded: number }>('/exercises/seed');
   return response.data;
+}
+
+// ============ Admin API ============
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const response = await client.get<AdminUser[]>('/admin/users');
+  return response.data;
+}
+
+export async function getAdminStats(): Promise<AdminStats> {
+  const response = await client.get<AdminStats>('/admin/stats');
+  return response.data;
+}
+
+export async function updateAdminUser(
+  userId: number,
+  data: { role?: string; disabled?: boolean },
+): Promise<AdminUser> {
+  const response = await client.patch<AdminUser>(`/admin/users/${userId}`, data);
+  return response.data;
+}
+
+export async function deleteAdminUser(userId: number): Promise<void> {
+  await client.delete(`/admin/users/${userId}`);
 }
 
 // ============ AI Coach API ============

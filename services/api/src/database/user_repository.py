@@ -2,7 +2,7 @@
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from services.api.src.database.db_models import UserTable
+from services.api.src.database.db_models import ExerciseTable, UserTable
 
 
 class UserRepository:
@@ -175,3 +175,46 @@ class UserRepository:
         self.session.commit()
         self.session.refresh(user)
         return user
+
+    def get_all(self) -> list[UserTable]:
+        """Return all users ordered by id.
+
+        Returns:
+            List of all users.
+        """
+        statement = select(UserTable).order_by(UserTable.id)
+        return list(self.session.exec(statement).all())
+
+    def count_admins(self) -> int:
+        """Count the number of admin-role users.
+
+        Returns:
+            Number of users with the admin role.
+        """
+        return self.session.execute(
+            select(func.count()).select_from(UserTable).where(UserTable.role == "admin")
+        ).scalar() or 0
+
+    def delete_by_id(self, user_id: int) -> bool:
+        """Delete a user and their exercises by ID.
+
+        Args:
+            user_id: ID of the user to delete
+
+        Returns:
+            True if deleted, False if not found.
+        """
+        user = self.session.get(UserTable, user_id)
+        if not user:
+            return False
+
+        # Delete all exercises belonging to this user
+        exercises = self.session.exec(
+            select(ExerciseTable).where(ExerciseTable.user_id == user_id)
+        ).all()
+        for exercise in exercises:
+            self.session.delete(exercise)
+
+        self.session.delete(user)
+        self.session.commit()
+        return True

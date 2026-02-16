@@ -9,7 +9,8 @@ from starlette.middleware.base import RequestResponseEndpoint
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Literal, Annotated
 from datetime import datetime, timezone, timedelta
-from sqlmodel import Session
+from sqlalchemy import func
+from sqlmodel import Session, select
 import csv
 from io import StringIO
 import logging
@@ -21,7 +22,7 @@ from services.api.src.database.models import Exercise, ExerciseResponse, Exercis
 from services.api.src.database.dependencies import RepositoryDep, UserRepositoryDep
 from services.api.src.database.database import init_db, get_session
 from services.api.src.database.sqlmodel_repository import ExerciseRepository
-from services.api.src.database.db_models import UserTable
+from services.api.src.database.db_models import ExerciseTable, UserTable
 from services.api.src.auth import (
     Token,
     GoogleLoginRequest,
@@ -30,6 +31,9 @@ from services.api.src.auth import (
     EmailLoginRequest,
     UpdateProfileRequest,
     UserResponse,
+    AdminUserResponse,
+    AdminUpdateUserRequest,
+    AdminStatsResponse,
     verify_google_token,
     create_access_token,
     create_refresh_token,
@@ -689,30 +693,156 @@ async def delete_me(
     session.commit()
 
 
-@app.get('/admin/users', tags=["Admin"])
+@app.get('/admin/users', response_model=list[AdminUserResponse], tags=["Admin"])
 @limiter.limit(lambda: ratelimit_settings.admin_limit)
 async def list_users(
     request: Request,
     current_user: Annotated[UserTable, Depends(require_admin)],
-) -> list[dict]:
-    """List all users (admin only).
-
-    Args:
-        current_user: Current admin user.
+    user_repo: UserRepositoryDep,
+    session: Session = Depends(get_session),
+) -> list[AdminUserResponse]:
+    """List all users with exercise counts (admin only).
 
     Returns:
-        List of users.
+        List of all users with metadata.
     """
-    # For now return just the current admin user info
-    return [
-        {
-            "id": current_user.id,
-            "email": current_user.email,
-            "name": current_user.name,
-            "role": current_user.role,
-            "disabled": current_user.disabled,
-        }
-    ]
+    users = user_repo.get_all()
+    result = []
+    for u in users:
+        count = session.execute(
+            select(func.count()).select_from(ExerciseTable).where(
+                ExerciseTable.user_id == u.id
+            )
+        ).scalar() or 0
+        result.append(AdminUserResponse(
+            id=u.id,
+            email=u.email,
+            name=u.name,
+            picture_url=u.picture_url,
+            role=u.role,
+            disabled=u.disabled,
+            created_at=u.created_at,
+            exercise_count=count,
+        ))
+    return result
+
+
+@app.patch('/admin/users/{user_id}', response_model=AdminUserResponse, tags=["Admin"])
+@limiter.limit(lambda: ratelimit_settings.admin_limit)
+async def admin_update_user(
+    request: Request,
+    user_id: int,
+    update_data: AdminUpdateUserRequest,
+    current_user: Annotated[UserTable, Depends(require_admin)],
+    user_repo: UserRepositoryDep,
+    session: Session = Depends(get_session),
+) -> AdminUserResponse:
+    """Update a user's role or disabled status (admin only).
+
+    Raises:
+        HTTPException: 404 if user not found, 409 on safety violations.
+    """
+    target = user_repo.get_by_id(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Cannot disable yourself
+    if update_data.disabled is True and target.id == current_user.id:
+        raise HTTPException(status_code=409, detail="Cannot disable yourself")
+
+    # Last-admin protection: demoting an admin when they're the only one
+    if update_data.role and update_data.role != "admin" and target.role == "admin":
+        if user_repo.count_admins() <= 1:
+            raise HTTPException(status_code=409, detail="Cannot demote the last admin")
+
+    if update_data.role is not None:
+        target.role = update_data.role
+    if update_data.disabled is not None:
+        target.disabled = update_data.disabled
+
+    session.add(target)
+    session.commit()
+    session.refresh(target)
+
+    count = session.execute(
+        select(func.count()).select_from(ExerciseTable).where(
+            ExerciseTable.user_id == target.id
+        )
+    ).scalar() or 0
+
+    return AdminUserResponse(
+        id=target.id,
+        email=target.email,
+        name=target.name,
+        picture_url=target.picture_url,
+        role=target.role,
+        disabled=target.disabled,
+        created_at=target.created_at,
+        exercise_count=count,
+    )
+
+
+@app.delete('/admin/users/{user_id}', status_code=204, tags=["Admin"])
+@limiter.limit(lambda: ratelimit_settings.admin_limit)
+async def admin_delete_user(
+    request: Request,
+    user_id: int,
+    current_user: Annotated[UserTable, Depends(require_admin)],
+    user_repo: UserRepositoryDep,
+) -> None:
+    """Delete a user and their exercises (admin only).
+
+    Raises:
+        HTTPException: 404 if not found, 409 on safety violations.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(status_code=409, detail="Cannot delete yourself")
+
+    target = user_repo.get_by_id(user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if target.role == "admin" and user_repo.count_admins() <= 1:
+        raise HTTPException(status_code=409, detail="Cannot delete the last admin")
+
+    user_repo.delete_by_id(user_id)
+
+
+@app.get('/admin/stats', response_model=AdminStatsResponse, tags=["Admin"])
+@limiter.limit(lambda: ratelimit_settings.admin_limit)
+async def admin_stats(
+    request: Request,
+    current_user: Annotated[UserTable, Depends(require_admin)],
+    session: Session = Depends(get_session),
+) -> AdminStatsResponse:
+    """Get platform-wide statistics (admin only)."""
+    total_users = session.execute(
+        select(func.count()).select_from(UserTable)
+    ).scalar() or 0
+
+    total_exercises = session.execute(
+        select(func.count()).select_from(ExerciseTable)
+    ).scalar() or 0
+
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    recent_signups = session.execute(
+        select(func.count()).select_from(UserTable).where(
+            UserTable.created_at >= seven_days_ago
+        )
+    ).scalar() or 0
+
+    # Active users = users who have at least one exercise (proxy for activity)
+    active_users = session.execute(
+        select(func.count(func.distinct(ExerciseTable.user_id))).select_from(ExerciseTable)
+    ).scalar() or 0
+
+    return AdminStatsResponse(
+        total_users=total_users,
+        total_exercises=total_exercises,
+        recent_signups_7d=recent_signups,
+        active_users_7d=active_users,
+    )
 
 
 @app.delete('/admin/exercises/{exercise_id}', status_code=204, tags=["Admin"])
@@ -721,18 +851,15 @@ async def admin_delete_exercise(
     request: Request,
     exercise_id: int,
     current_user: Annotated[UserTable, Depends(require_admin)],
-    repository: RepositoryDep
+    session: Session = Depends(get_session),
 ) -> None:
-    """Delete exercise (admin only, protected route).
-
-    Args:
-        exercise_id: ID of exercise to delete.
-        current_user: Current admin user.
+    """Delete any exercise by ID (admin only, no user scoping).
 
     Raises:
         HTTPException: 404 if exercise not found.
     """
-    success = repository.delete(exercise_id, current_user.id)
-    if not success:
+    exercise = session.get(ExerciseTable, exercise_id)
+    if not exercise:
         raise HTTPException(status_code=404, detail='Exercise not found')
-    return None
+    session.delete(exercise)
+    session.commit()

@@ -133,6 +133,32 @@ class UserResponse(BaseModel):
     role: str
 
 
+class AdminUserResponse(BaseModel):
+    """User info returned by admin endpoints."""
+    id: int
+    email: str
+    name: str
+    picture_url: str | None = None
+    role: str
+    disabled: bool
+    created_at: datetime
+    exercise_count: int
+
+
+class AdminUpdateUserRequest(BaseModel):
+    """Request to update a user's role or disabled status (admin only)."""
+    role: str | None = Field(None, pattern=r"^(admin|user|readonly)$")
+    disabled: bool | None = None
+
+
+class AdminStatsResponse(BaseModel):
+    """Platform-wide statistics for admin dashboard."""
+    total_users: int
+    total_exercises: int
+    recent_signups_7d: int
+    active_users_7d: int
+
+
 def verify_google_token(token: str, client_id: str) -> dict:
     """Verify a Google OAuth ID token and return user info.
 

@@ -1,18 +1,29 @@
+import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Bot, Settings } from 'lucide-react';
+import { Home, Bot, Settings, Shield } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
-const TABS = [
+const BASE_TABS = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/coach', label: 'Coach', icon: Bot },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function BottomNav() {
+  const { user } = useAuth();
+
+  const tabs = useMemo(() => {
+    if (user?.role === 'admin') {
+      return [...BASE_TABS, { to: '/admin', label: 'Admin', icon: Shield }];
+    }
+    return BASE_TABS;
+  }, [user?.role]);
+
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/80 backdrop-blur-xl h-16 safe-area-bottom">
       <div className="flex items-center justify-around h-full px-4">
-        {TABS.map(({ to, label, icon: Icon }) => (
+        {tabs.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

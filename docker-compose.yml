@@ -46,7 +46,7 @@ services:
       # Mount the data directory for exports
       - ./data:/app/data
       # For development: mount the services code to enable hot-reloading
-      - ./services:/app/services
+#      - ./services:/app/services
     environment:
       # Application configuration
       - APP_ENVIRONMENT=production

@@ -33,6 +33,7 @@ sys.path.insert(0, str(project_root))
 
 from services.api.src.database.database import init_db, get_session
 from services.api.src.database.sqlmodel_repository import ExerciseRepository
+from services.api.src.database.user_repository import UserRepository
 
 app = typer.Typer(
     help="Workout Tracker CLI - Operator commands for database management",
@@ -433,6 +434,47 @@ def info(
             rprint(f"[cyan]ID range:[/cyan] {first_id} - {last_id}")
 
         rprint()
+
+
+@app.command()
+def promote(
+    email: str = typer.Argument(help="Email of the user to promote"),
+    role: str = typer.Option("admin", "--role", "-r", help="Role to assign: admin, user, readonly"),
+) -> None:
+    """Promote (or change role of) a user by email.
+
+    Examples:
+        uv run python cli/workout_cli.py promote alice@example.com
+        uv run python cli/workout_cli.py promote bob@example.com --role readonly
+    """
+    if role not in ("admin", "user", "readonly"):
+        console.print(f"[red]Invalid role '{role}'. Must be admin, user, or readonly.[/red]")
+        raise typer.Exit(1)
+
+    init_db()
+
+    with next(get_session()) as session:
+        repo = UserRepository(session)
+        user = repo.get_by_email(email)
+
+        if not user:
+            console.print(f"[red]User '{email}' not found.[/red]")
+            raise typer.Exit(1)
+
+        old_role = user.role
+        if old_role == role:
+            console.print(f"[yellow]User '{email}' already has role '{role}'.[/yellow]")
+            raise typer.Exit(0)
+
+        user.role = role
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+        console.print(
+            f"[bold green]Done![/bold green] {user.name} ({user.email}): "
+            f"[yellow]{old_role}[/yellow] -> [cyan]{role}[/cyan]"
+        )
 
 
 if __name__ == "__main__":
