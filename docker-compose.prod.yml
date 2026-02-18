@@ -21,6 +21,7 @@ services:
       - APP_ENVIRONMENT=production
       - APP_LOG_LEVEL=WARNING
       - APP_CORS_ORIGINS=https://${DOMAIN_NAME:-localhost}
+      - APP_ADMIN_EMAILS=${ADMIN_EMAILS:-}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-workout}:${POSTGRES_PASSWORD:-workout123}@db:5432/${POSTGRES_DB:-workout_tracker}
       - API_HOST=0.0.0.0
       - API_PORT=8000

@@ -468,6 +468,7 @@ def google_login(
         email=google_info["email"],
         name=google_info["name"],
         picture_url=google_info.get("picture"),
+        admin_emails=settings.admin_emails_list,
     )
 
     if is_new:

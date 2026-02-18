@@ -67,6 +67,9 @@ services:
       # Google OAuth
       - APP_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
 
+      # Auto-admin emails (comma-separated)
+      - APP_ADMIN_EMAILS=${ADMIN_EMAILS:-}
+
       # Python configuration
       - PYTHONUNBUFFERED=1
 

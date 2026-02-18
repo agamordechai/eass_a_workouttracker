@@ -194,6 +194,19 @@ class AppSettings(BaseSettings):
         description="Google OAuth 2.0 Client ID for sign-in verification"
     )
 
+    # Auto-admin configuration
+    admin_emails: str = Field(
+        default="",
+        description="Comma-separated list of emails that should be auto-promoted to admin on login"
+    )
+
+    @property
+    def admin_emails_list(self) -> list[str]:
+        """Parse admin emails from comma-separated string."""
+        if not self.admin_emails:
+            return []
+        return [email.strip().lower() for email in self.admin_emails.split(",") if email.strip()]
+
     # Application-level settings
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",

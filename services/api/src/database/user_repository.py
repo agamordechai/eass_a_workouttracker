@@ -73,6 +73,7 @@ class UserRepository:
         email: str,
         name: str,
         picture_url: str | None = None,
+        admin_emails: list[str] | None = None,
     ) -> tuple[UserTable, bool]:
         """Find an existing user by Google ID, or create a new one.
 
@@ -81,6 +82,7 @@ class UserRepository:
             email: User email
             name: User display name
             picture_url: Profile picture URL
+            admin_emails: List of emails that should be auto-promoted to admin
 
         Returns:
             Tuple of (user, is_new) where is_new is True if the user was just created.
@@ -89,6 +91,11 @@ class UserRepository:
         if existing:
             # Update profile info on every login
             self.update_profile(existing, email=email, name=name, picture_url=picture_url)
+            # Auto-promote to admin if in admin_emails list
+            if admin_emails and email.lower() in admin_emails and existing.role != "admin":
+                existing.role = "admin"
+                self.session.add(existing)
+                self.session.commit()
             return existing, False
 
         # Check if an email/password account already exists for this email
@@ -97,6 +104,11 @@ class UserRepository:
             # Link Google credentials to the existing account
             by_email.google_id = google_id
             self.update_profile(by_email, email=email, name=name, picture_url=picture_url)
+            # Auto-promote to admin if in admin_emails list
+            if admin_emails and email.lower() in admin_emails and by_email.role != "admin":
+                by_email.role = "admin"
+                self.session.add(by_email)
+                self.session.commit()
             return by_email, False
 
         new_user = self.create(
@@ -105,6 +117,11 @@ class UserRepository:
             name=name,
             picture_url=picture_url,
         )
+        # Auto-promote to admin if in admin_emails list
+        if admin_emails and email.lower() in admin_emails:
+            new_user.role = "admin"
+            self.session.add(new_user)
+            self.session.commit()
         return new_user, True
 
     def get_by_email(self, email: str) -> UserTable | None:
