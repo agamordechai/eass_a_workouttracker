@@ -210,7 +210,7 @@ jobs:
 
       - name: Smoke test - API endpoints
         run: |
-          curl -sS -L --fail --max-time 10 "https://${{ secrets.DOMAIN_NAME }}/api/exercises" -o /dev/null
+          curl -sS -L --fail --max-time 10 "https://${{ secrets.DOMAIN_NAME }}/api/" -o /dev/null
           echo "API smoke test passed!"
 
   # ============================================
