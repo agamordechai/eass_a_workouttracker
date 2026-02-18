@@ -3,19 +3,239 @@ name: Deploy to EC2
 on:
   push:
     branches: [main]
+  workflow_dispatch:  # Allow manual deployments
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+# Prevent concurrent deployments
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/grindlogger
 
 jobs:
-  deploy:
+  # ============================================
+  # Wait for CI to pass
+  # ============================================
+  wait-for-ci:
+    name: Wait for CI
     runs-on: ubuntu-latest
     steps:
+      - name: Wait for CI workflow
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'CI Success'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+  # ============================================
+  # Build and Push Docker Images
+  # ============================================
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: [wait-for-ci]
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - service: api
+            context: .
+            dockerfile: services/api/Dockerfile
+          - service: ai-coach
+            context: .
+            dockerfile: services/ai_coach/Dockerfile
+          - service: worker
+            context: .
+            dockerfile: services/worker/Dockerfile
+          - service: frontend
+            context: ./services/frontend
+            dockerfile: services/frontend/Dockerfile
+    outputs:
+      api-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+
+  # ============================================
+  # Deploy to EC2
+  # ============================================
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    environment:
+      name: production
+      url: https://${{ secrets.DOMAIN_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create deployment
+        uses: chrnorm/deployment-action@v2
+        id: deployment
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: production
+
       - name: Deploy via SSH
+        id: deploy
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
           script: |
+            set -e
+
             cd ~/GrindLogger
-            git pull origin main
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+            echo "📥 Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "🐳 Logging into GitHub Container Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            echo "📦 Pulling new images..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+            echo "🔄 Starting rolling update..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+
+            echo "⏳ Waiting for services to be healthy..."
+            sleep 30
+
+            echo "🏥 Health check..."
+            curl -sf http://localhost:8000/health || exit 1
+
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f
+
+            echo "✅ Deployment complete!"
             docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+      - name: Update deployment status (success)
+        if: success()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: success
+
+      - name: Update deployment status (failure)
+        if: failure()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: failure
+
+  # ============================================
+  # Post-Deployment Verification
+  # ============================================
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    steps:
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Health check
+        run: |
+          for i in {1..5}; do
+            if curl -sf "https://${{ secrets.DOMAIN_NAME }}/api/health" -o /dev/null; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::Health check failed after 5 attempts"
+          exit 1
+
+      - name: Smoke test - API endpoints
+        run: |
+          # Test that key endpoints are responding
+          curl -sf "https://${{ secrets.DOMAIN_NAME }}/api/exercises" -o /dev/null
+          echo "✅ API smoke test passed!"
+
+  # ============================================
+  # Notify on Completion
+  # ============================================
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy, verify]
+    if: always()
+    steps:
+      - name: Slack notification
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ needs.deploy.result }}
+          fields: repo,message,commit,author,workflow
+          mention: here
+          if_mention: failure
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Verify | ${{ needs.verify.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+

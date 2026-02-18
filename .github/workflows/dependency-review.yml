@@ -1,0 +1,67 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
+          deny-licenses: GPL-3.0, AGPL-3.0
+
+  pip-audit:
+    name: Python Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Install uv and export requirements
+        run: |
+          pip install uv
+          uv export --no-hashes > requirements.txt
+
+      - name: Run pip-audit
+        run: pip-audit -r requirements.txt --strict
+        continue-on-error: true
+
+  npm-audit:
+    name: NPM Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: services/frontend
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: services/frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
