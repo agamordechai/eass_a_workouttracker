@@ -147,13 +147,10 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
 
             echo "Starting rolling update..."
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --wait --wait-timeout 120
 
-            echo "Waiting for services to be healthy..."
-            sleep 30
-
-            echo "Health check..."
-            curl -sf http://localhost:8000/health || exit 1
+            echo "Health check (via container network)..."
+            docker exec grindlogger-api curl -sf http://localhost:8000/health || exit 1
 
             echo "Cleaning up old images..."
             docker image prune -f
