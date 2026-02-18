@@ -24,7 +24,7 @@ COPY pyproject.toml uv.lock ./
 COPY services/__init__.py ./services/
 COPY services/shared/ ./services/shared/
 COPY services/api/ ./services/api/
-RUN uv sync --no-dev --frozen --no-install-project
+RUN uv sync --no-dev --no-install-project
 
 # Create directory for database
 RUN mkdir -p /app/data
