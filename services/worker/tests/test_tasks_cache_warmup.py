@@ -1,7 +1,8 @@
 """Tests for cache warmup task."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 @pytest.mark.anyio
@@ -75,7 +76,7 @@ async def test_warmup_ai_cache_request_format():
     mock_client.post = capture_post
 
     with patch("services.worker.src.tasks.cache_warmup.get_ai_coach_client", return_value=mock_client):
-        result = await warmup_ai_cache({})
+        await warmup_ai_cache({})
 
         # Verify at least one request was captured
         assert len(requests_made) > 0

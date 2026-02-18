@@ -17,20 +17,20 @@ Performance:
   - Use -m "not slow" to skip these tests entirely
 """
 
-import pytest
-import schemathesis
 from datetime import timedelta
 from unittest.mock import patch
-from sqlmodel import SQLModel, Session
+
+import pytest
+import schemathesis
 from fastapi.testclient import TestClient
-from schemathesis.specs.openapi.checks import negative_data_rejection, ignored_auth
-from hypothesis import settings, Phase
+from hypothesis import settings
+from schemathesis.specs.openapi.checks import ignored_auth, negative_data_rejection
+from sqlmodel import Session, SQLModel
 
 from services.api.src.api import app, limiter
 from services.api.src.auth import create_access_token
-from services.api.src.database.database import engine, get_session
+from services.api.src.database.database import engine
 from services.api.src.database.db_models import ExerciseTable, UserTable  # noqa: F401 — registers models
-
 
 # ---------------------------------------------------------------------------
 # Performance Configuration
@@ -84,6 +84,13 @@ SQLModel.metadata.create_all(engine)
 with Session(engine) as _session:
     _ensure_user(_session, 2, "user")
     _ensure_user(_session, 3, "admin")
+    # Sync PostgreSQL auto-increment sequence so new inserts don't collide
+    # with explicitly-inserted IDs.
+    if engine.dialect.name == "postgresql":
+        from sqlalchemy import text
+
+        _session.execute(text("SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users))"))
+        _session.commit()
 
 # ---------------------------------------------------------------------------
 # Disable rate limiter — requires Redis which is unavailable in unit-test
@@ -191,6 +198,12 @@ def client():
         with Session(engine) as session:
             _ensure_user(session, 2, "user")
             _ensure_user(session, 3, "admin")
+            # Sync PostgreSQL sequence after explicit ID inserts
+            if engine.dialect.name == "postgresql":
+                from sqlalchemy import text
+
+                session.execute(text("SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users))"))
+                session.commit()
         yield c
 
 
@@ -321,7 +334,8 @@ class TestExerciseBoundaryExplicit:
         assert resp.json()["reps"] == 1000
 
     def test_zero_weight_accepted(self, client, user_headers):
-        resp = client.post("/exercises", json={"name": "ZeroWt", "sets": 1, "reps": 1, "weight": 0.0}, headers=user_headers)
+        payload = {"name": "ZeroWt", "sets": 1, "reps": 1, "weight": 0.0}
+        resp = client.post("/exercises", json=payload, headers=user_headers)
         assert resp.status_code == 201
         assert resp.json()["weight"] == 0.0
 
@@ -334,7 +348,8 @@ class TestExerciseBoundaryExplicit:
         assert resp.status_code == 422
 
     def test_patch_weight_to_null_clears_weight(self, client, user_headers):
-        create = client.post("/exercises", json={"name": "W", "sets": 1, "reps": 1, "weight": 50.0}, headers=user_headers)
+        payload = {"name": "W", "sets": 1, "reps": 1, "weight": 50.0}
+        create = client.post("/exercises", json=payload, headers=user_headers)
         eid = create.json()["id"]
         resp = client.patch(f"/exercises/{eid}", json={"weight": None}, headers=user_headers)
         assert resp.status_code == 200

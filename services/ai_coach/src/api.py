@@ -1,40 +1,32 @@
 """FastAPI application for the AI Workout Coach service."""
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import jwt
 import redis.asyncio as redis
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 
+from services.ai_coach.src.agent import analyze_progress, chat_with_coach, get_workout_recommendation
 from services.ai_coach.src.config import get_settings
 from services.ai_coach.src.models import (
     ChatRequest,
     ChatResponse,
+    HealthResponse,
+    ProgressAnalysis,
     RecommendationRequest,
     WorkoutRecommendation,
-    ProgressAnalysis,
-    HealthResponse
 )
-from services.ai_coach.src.workout_client import (
-    get_workout_client,
-    close_workout_client
-)
-from services.ai_coach.src.agent import (
-    chat_with_coach,
-    get_workout_recommendation,
-    analyze_progress
-)
+from services.ai_coach.src.workout_client import close_workout_client, get_workout_client
 
 # Get settings
 settings = get_settings()
 
 # Configure logging
 logging.basicConfig(
-    level=getattr(logging, settings.log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, settings.log_level), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -127,7 +119,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     openapi_url="/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -159,7 +151,7 @@ async def health_check() -> HealthResponse:
         service="ai-coach",
         ai_model=settings.ai_model,
         workout_api_connected=workout_api_healthy,
-        redis_connected=redis_healthy
+        redis_connected=redis_healthy,
     )
 
 
@@ -182,19 +174,13 @@ async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
             logger.warning(f"Failed to fetch workout context: {e}")
 
     try:
-        response = await chat_with_coach(
-            chat_request.message, workout_context, api_key=anthropic_key
-        )
+        response = await chat_with_coach(chat_request.message, workout_context, api_key=anthropic_key)
         return ChatResponse(
-            response=response,
-            context_used=workout_context is not None and len(workout_context.exercises) > 0
+            response=response, context_used=workout_context is not None and len(workout_context.exercises) > 0
         )
     except Exception as e:
         logger.error(f"Chat error: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to get response from AI coach. Please try again."
-        )
+        raise HTTPException(status_code=500, detail="Failed to get response from AI coach. Please try again.") from e
 
 
 @app.post("/recommend", response_model=WorkoutRecommendation)
@@ -228,9 +214,8 @@ async def recommend_workout(request: Request, rec_request: RecommendationRequest
     except Exception as e:
         logger.error(f"Recommendation error: {e}")
         raise HTTPException(
-            status_code=500,
-            detail="Failed to generate workout recommendation. Please try again."
-        )
+            status_code=500, detail="Failed to generate workout recommendation. Please try again."
+        ) from e
 
 
 @app.get("/analyze", response_model=ProgressAnalysis)
@@ -248,26 +233,17 @@ async def analyze_workout(request: Request) -> ProgressAnalysis:
         workout_context = await workout_client.get_workout_context(auth_header=auth_header)
     except Exception as e:
         logger.error(f"Failed to fetch workout context: {e}")
-        raise HTTPException(
-            status_code=503,
-            detail="Unable to connect to workout API. Please try again."
-        )
+        raise HTTPException(status_code=503, detail="Unable to connect to workout API. Please try again.") from e
 
     if not workout_context.exercises:
-        raise HTTPException(
-            status_code=400,
-            detail="No exercises found. Add some exercises to get analysis."
-        )
+        raise HTTPException(status_code=400, detail="No exercises found. Add some exercises to get analysis.")
 
     try:
         analysis = await analyze_progress(workout_context, api_key=anthropic_key)
         return analysis
     except Exception as e:
         logger.error(f"Analysis error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to analyze workout: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to analyze workout: {str(e)}") from e
 
 
 @app.get("/exercises")
@@ -281,7 +257,4 @@ async def get_current_exercises(request: Request):
         return exercises
     except Exception as e:
         logger.error(f"Failed to fetch exercises: {e}")
-        raise HTTPException(
-            status_code=503,
-            detail="Unable to connect to workout API."
-        )
+        raise HTTPException(status_code=503, detail="Unable to connect to workout API.") from e

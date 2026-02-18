@@ -1,4 +1,5 @@
 """AI Coach agent using Pydantic AI."""
+
 import logging
 from dataclasses import dataclass
 
@@ -7,12 +8,7 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 
 from services.ai_coach.src.config import get_settings
-from services.ai_coach.src.models import (
-    WorkoutContext,
-    WorkoutRecommendation,
-    ProgressAnalysis,
-    MuscleGroup
-)
+from services.ai_coach.src.models import MuscleGroup, ProgressAnalysis, WorkoutContext, WorkoutRecommendation
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CoachDependencies:
     """Dependencies for the AI coach agent."""
+
     workout_context: WorkoutContext | None = None
     focus_area: str | None = None
     custom_focus: str | None = None
@@ -95,10 +92,11 @@ async def add_workout_context(ctx) -> str:
         context_str = "\n\nCurrent Workout Data:\n"
         context_str += f"- Total Exercises: {deps.workout_context.exercise_count}\n"
         context_str += f"- Total Volume: {deps.workout_context.total_volume:.1f} kg\n"
-        context_str += f"- Muscle Groups Worked: {', '.join(deps.workout_context.muscle_groups_worked) or 'Not identified'}\n"
+        muscle_groups = ", ".join(deps.workout_context.muscle_groups_worked) or "Not identified"
+        context_str += f"- Muscle Groups Worked: {muscle_groups}\n"
 
         # Analyze workout split structure
-        workout_days = set(ex.workout_day for ex in deps.workout_context.exercises)
+        workout_days = {ex.workout_day for ex in deps.workout_context.exercises}
         daily_exercises = [ex for ex in deps.workout_context.exercises if ex.workout_day == "None"]
         split_days = [day for day in workout_days if day != "None"]
 
@@ -106,7 +104,7 @@ async def add_workout_context(ctx) -> str:
             context_str += f"- Daily Exercises (done every day): {len(daily_exercises)} exercise(s)\n"
 
         if len(split_days) == 0 and daily_exercises:
-            context_str += f"- Workout Split: ALL DAILY (no specific day split)\n"
+            context_str += "- Workout Split: ALL DAILY (no specific day split)\n"
         elif len(split_days) == 1:
             context_str += f"- Workout Split: FULL BODY (all exercises on Day {split_days[0]})\n"
         elif len(split_days) == 2:
@@ -121,7 +119,7 @@ async def add_workout_context(ctx) -> str:
 
         # Show daily exercises first if any
         if daily_exercises:
-            context_str += f"\n  Daily (Every Day):\n"
+            context_str += "\n  Daily (Every Day):\n"
             for ex in daily_exercises:
                 weight_str = f" @ {ex.weight}kg" if ex.weight else " (bodyweight)"
                 context_str += f"    - {ex.name}: {ex.sets} sets x {ex.reps} reps{weight_str}\n"
@@ -185,24 +183,21 @@ async def get_workout_recommendation(
     Returns:
         Structured workout recommendation
     """
-    focus_label = (
-        custom_focus_area
-        or (focus_area.value.replace("_", "/").title() if focus_area else "Full Body")
-    )
+    focus_label = custom_focus_area or (focus_area.value.replace("_", "/").title() if focus_area else "Full Body")
 
     deps = CoachDependencies(
         workout_context=workout_context,
         focus_area=focus_area.value if focus_area else None,
         custom_focus=custom_focus_area,
         equipment=equipment or ["barbell", "dumbbells", "cables", "bodyweight"],
-        session_duration=session_duration
+        session_duration=session_duration,
     )
 
     prompt = f"""Generate a complete workout routine recommendation.
 
 Session Duration: {session_duration} minutes per session
 Focus Area: {focus_label}
-Available Equipment: {', '.join(deps.equipment)}
+Available Equipment: {", ".join(deps.equipment)}
 
 Please provide:
 1. A catchy workout title
@@ -257,7 +252,8 @@ async def analyze_progress(
 
     prompt = """Analyze the workout routine provided in the context and give personalized feedback.
 
-IMPORTANT: Base your analysis ONLY on the specific exercises, workout split, and training structure you see in the workout data. Do NOT provide generic advice.
+IMPORTANT: Base your analysis ONLY on the specific exercises, workout split, and training structure
+you see in the workout data. Do NOT provide generic advice.
 
 Provide:
 1. A brief summary of the training approach (mention the specific split type and structure you observe)
@@ -294,10 +290,11 @@ Be encouraging but honest. Focus on practical improvements specific to this pers
                 context_str = "\n\nCurrent Workout Data:\n"
                 context_str += f"- Total Exercises: {deps.workout_context.exercise_count}\n"
                 context_str += f"- Total Volume: {deps.workout_context.total_volume:.1f} kg\n"
-                context_str += f"- Muscle Groups Worked: {', '.join(deps.workout_context.muscle_groups_worked) or 'Not identified'}\n"
+                muscle_groups = ", ".join(deps.workout_context.muscle_groups_worked) or "Not identified"
+                context_str += f"- Muscle Groups Worked: {muscle_groups}\n"
 
                 # Analyze workout split structure
-                workout_days = set(ex.workout_day for ex in deps.workout_context.exercises)
+                workout_days = {ex.workout_day for ex in deps.workout_context.exercises}
                 daily_exercises = [ex for ex in deps.workout_context.exercises if ex.workout_day == "None"]
                 split_days = [day for day in workout_days if day != "None"]
 
@@ -305,7 +302,7 @@ Be encouraging but honest. Focus on practical improvements specific to this pers
                     context_str += f"- Daily Exercises (done every day): {len(daily_exercises)} exercise(s)\n"
 
                 if len(split_days) == 0 and daily_exercises:
-                    context_str += f"- Workout Split: ALL DAILY (no specific day split)\n"
+                    context_str += "- Workout Split: ALL DAILY (no specific day split)\n"
                 elif len(split_days) == 1:
                     context_str += f"- Workout Split: FULL BODY (all exercises on Day {split_days[0]})\n"
                 elif len(split_days) == 2:
@@ -313,14 +310,15 @@ Be encouraging but honest. Focus on practical improvements specific to this pers
                 elif len(split_days) == 3:
                     context_str += f"- Workout Split: A/B/C SPLIT (Days: {', '.join(sorted(split_days))})\n"
                 elif len(split_days) > 0:
-                    context_str += f"- Workout Split: {len(split_days)}-DAY SPLIT (Days: {', '.join(sorted(split_days))})\n"
+                    days_str = ", ".join(sorted(split_days))
+                    context_str += f"- Workout Split: {len(split_days)}-DAY SPLIT (Days: {days_str})\n"
 
                 # Group exercises by workout day
                 context_str += "\nExercises grouped by workout day:\n"
 
                 # Show daily exercises first if any
                 if daily_exercises:
-                    context_str += f"\n  Daily (Every Day):\n"
+                    context_str += "\n  Daily (Every Day):\n"
                     for ex in daily_exercises:
                         weight_str = f" @ {ex.weight}kg" if ex.weight else " (bodyweight)"
                         context_str += f"    - {ex.name}: {ex.sets} sets x {ex.reps} reps{weight_str}\n"
@@ -344,6 +342,3 @@ Be encouraging but honest. Focus on practical improvements specific to this pers
         logger.error(f"Workout context: {deps.workout_context}")
         # Re-raise the exception so we can see what's actually wrong
         raise
-
-
-

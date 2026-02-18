@@ -2,65 +2,63 @@
 
 This module defines the REST API endpoints for managing workout exercises.
 """
-from fastapi import FastAPI, HTTPException, Request, Response, Depends, Query, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
-from starlette.middleware.base import RequestResponseEndpoint
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Literal, Annotated
-from datetime import datetime, timezone, timedelta
-from sqlalchemy import func
-from sqlmodel import Session, select
+
 import csv
-from io import StringIO
 import logging
 import time
 import uuid
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
+from io import StringIO
+from typing import Annotated, Literal
 
-from services.api.src.database.config import get_settings
-from services.api.src.database.models import Exercise, ExerciseResponse, ExerciseEditRequest, HealthResponse
-from services.api.src.database.dependencies import RepositoryDep, UserRepositoryDep
-from services.api.src.database.database import init_db, get_session
-from services.api.src.database.sqlmodel_repository import ExerciseRepository
-from services.api.src.database.db_models import ExerciseTable, UserTable
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import func
+from sqlmodel import Session, select
+from starlette.middleware.base import RequestResponseEndpoint
+
 from services.api.src.auth import (
-    Token,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    AdminStatsResponse,
+    AdminUpdateUserRequest,
+    AdminUserResponse,
+    EmailLoginRequest,
     GoogleLoginRequest,
     RefreshRequest,
     RegisterRequest,
-    EmailLoginRequest,
+    Token,
     UpdateProfileRequest,
     UserResponse,
-    AdminUserResponse,
-    AdminUpdateUserRequest,
-    AdminStatsResponse,
-    verify_google_token,
     create_access_token,
     create_refresh_token,
     decode_token,
     get_current_user,
-    require_admin,
     hash_password,
+    require_admin,
+    verify_google_token,
     verify_password,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
 )
-from slowapi import Limiter
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
-from services.api.src.ratelimit import (
-    get_rate_limit_key,
-    rate_limit_exceeded_handler,
-    get_ratelimit_settings
-)
+from services.api.src.database.config import get_settings
+from services.api.src.database.database import get_session, init_db
+from services.api.src.database.db_models import ExerciseTable, UserTable
+from services.api.src.database.dependencies import RepositoryDep, UserRepositoryDep
+from services.api.src.database.models import Exercise, ExerciseEditRequest, ExerciseResponse, HealthResponse
+from services.api.src.database.sqlmodel_repository import ExerciseRepository
 from services.api.src.etag import maybe_return_not_modified
+from services.api.src.ratelimit import get_rate_limit_key, get_ratelimit_settings, rate_limit_exceeded_handler
 
 # Get application settings
 settings = get_settings()
 
 # Configure logging
 logging.basicConfig(
-    level=getattr(logging, settings.log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, settings.log_level), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -71,7 +69,7 @@ limiter = Limiter(
     storage_uri=ratelimit_settings.redis_url,
     enabled=ratelimit_settings.enabled,
     headers_enabled=False,  # Disabled due to FastAPI response_model compatibility
-    swallow_errors=True  # Graceful degradation if Redis unavailable
+    swallow_errors=True,  # Graceful degradation if Redis unavailable
 )
 
 
@@ -111,7 +109,7 @@ app = FastAPI(
     docs_url=settings.api.docs_url,
     openapi_url=settings.api.openapi_url,
     debug=settings.api.debug,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add limiter to app state
@@ -134,10 +132,7 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def request_logging_middleware(
-    request: Request,
-    call_next: RequestResponseEndpoint
-) -> Response:
+async def request_logging_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
     """Middleware to log all incoming requests with timing and trace ID.
 
     Args:
@@ -152,9 +147,7 @@ async def request_logging_middleware(
     start_time = time.time()
 
     # Log request
-    logger.info(
-        f"[{trace_id}] {request.method} {request.url.path} - Started"
-    )
+    logger.info(f"[{trace_id}] {request.method} {request.url.path} - Started")
 
     # Process request
     response = await call_next(request)
@@ -175,7 +168,7 @@ async def request_logging_middleware(
     return response
 
 
-@app.get('/')
+@app.get("/")
 @limiter.limit(lambda: ratelimit_settings.public_limit)
 def read_root(request: Request) -> dict[str, str]:
     """Get the root endpoint welcome message.
@@ -184,13 +177,13 @@ def read_root(request: Request) -> dict[str, str]:
         A dictionary containing a welcome message and configuration info.
     """
     return {
-        'message': 'Welcome to the Workout Tracker API',
-        'version': settings.api.version,
-        'docs': settings.api.docs_url
+        "message": "Welcome to the Workout Tracker API",
+        "version": settings.api.version,
+        "docs": settings.api.docs_url,
     }
 
 
-@app.get('/health', response_model=HealthResponse, tags=["Health"])
+@app.get("/health", response_model=HealthResponse, tags=["Health"])
 def health_check() -> HealthResponse:
     """Health check endpoint for monitoring and container orchestration.
 
@@ -214,25 +207,25 @@ def health_check() -> HealthResponse:
     return HealthResponse(
         status="healthy" if db_healthy else "unhealthy",
         version=settings.api.version,
-        timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         database={
             "status": "connected" if db_healthy else "disconnected",
             "message": db_message,
-            "exercise_count": exercise_count
-        }
+            "exercise_count": exercise_count,
+        },
     )
 
 
 _SORTABLE_COLUMNS = {"id", "name", "sets", "reps", "weight", "workout_day"}
 
 
-@app.get('/exercises')
+@app.get("/exercises")
 @limiter.limit("120/minute")  # User-level read limit
 def read_exercises(
     request: Request,
     repository: RepositoryDep,
     current_user: Annotated[UserTable, Depends(get_current_user)],
-    page: int = Query(1, ge=1, description="Page number"),
+    page: int = Query(1, ge=1, le=10_000_000, description="Page number"),
     page_size: int = Query(20, ge=1, le=200, description="Items per page"),
     sort_by: str = Query("id", description="Column to sort by"),
     sort_order: Literal["asc", "desc"] = Query("asc", description="Sort direction"),
@@ -244,19 +237,13 @@ def read_exercises(
     All responses include an X-Total-Count header with the total exercise count.
     """
     if sort_by not in _SORTABLE_COLUMNS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"sort_by must be one of: {sorted(_SORTABLE_COLUMNS)}"
-        )
+        raise HTTPException(status_code=400, detail=f"sort_by must be one of: {sorted(_SORTABLE_COLUMNS)}")
 
     items, total = repository.list_paginated(current_user.id, page, page_size, sort_by, sort_order)
 
     if format == "csv":
         buffer = StringIO()
-        writer = csv.DictWriter(
-            buffer,
-            fieldnames=["id", "name", "sets", "reps", "weight", "workout_day"]
-        )
+        writer = csv.DictWriter(buffer, fieldnames=["id", "name", "sets", "reps", "weight", "workout_day"])
         writer.writeheader()
         for item in items:
             row = item.model_dump()
@@ -288,7 +275,7 @@ def read_exercises(
     return maybe_return_not_modified(request, response, payload)
 
 
-@app.get('/exercises/{exercise_id}', response_model=ExerciseResponse)
+@app.get("/exercises/{exercise_id}", response_model=ExerciseResponse)
 @limiter.limit("120/minute")  # User-level read limit
 def read_exercise(
     request: Request,
@@ -309,11 +296,11 @@ def read_exercise(
     """
     exercise = repository.get_by_id(exercise_id, current_user.id)
     if not exercise:
-        raise HTTPException(status_code=404, detail='Exercise not found')
+        raise HTTPException(status_code=404, detail="Exercise not found")
     return exercise
 
 
-@app.post('/exercises', response_model=ExerciseResponse, status_code=201, tags=["Exercises"])
+@app.post("/exercises", response_model=ExerciseResponse, status_code=201, tags=["Exercises"])
 @limiter.limit("60/minute")  # User-level write limit
 def add_exercise(
     request: Request,
@@ -335,11 +322,11 @@ def add_exercise(
         sets=exercise.sets,
         reps=exercise.reps,
         weight=exercise.weight,
-        workout_day=exercise.workout_day
+        workout_day=exercise.workout_day,
     )
 
 
-@app.patch('/exercises/{exercise_id}', response_model=ExerciseResponse, tags=["Exercises"])
+@app.patch("/exercises/{exercise_id}", response_model=ExerciseResponse, tags=["Exercises"])
 @limiter.limit("60/minute")  # User-level write limit
 def edit_exercise_endpoint(
     request: Request,
@@ -361,7 +348,7 @@ def edit_exercise_endpoint(
         HTTPException: 404 error if the exercise is not found.
     """
     provided_fields = exercise_edit.model_dump(exclude_unset=True)
-    update_weight_flag = 'weight' in provided_fields
+    update_weight_flag = "weight" in provided_fields
 
     exercise = repository.update(
         exercise_id,
@@ -371,14 +358,14 @@ def edit_exercise_endpoint(
         reps=exercise_edit.reps,
         weight=exercise_edit.weight,
         update_weight=update_weight_flag,
-        workout_day=exercise_edit.workout_day
+        workout_day=exercise_edit.workout_day,
     )
     if not exercise:
-        raise HTTPException(status_code=404, detail='Exercise not found')
+        raise HTTPException(status_code=404, detail="Exercise not found")
     return exercise
 
 
-@app.delete('/exercises/{exercise_id}', status_code=204, tags=["Exercises"])
+@app.delete("/exercises/{exercise_id}", status_code=204, tags=["Exercises"])
 @limiter.limit("60/minute")  # User-level write limit
 def delete_exercise_endpoint(
     request: Request,
@@ -396,11 +383,11 @@ def delete_exercise_endpoint(
     """
     success = repository.delete(exercise_id, current_user.id)
     if not success:
-        raise HTTPException(status_code=404, detail='Exercise not found')
+        raise HTTPException(status_code=404, detail="Exercise not found")
     return None
 
 
-@app.delete('/exercises', status_code=200, tags=["Exercises"])
+@app.delete("/exercises", status_code=200, tags=["Exercises"])
 @limiter.limit("5/minute")
 def clear_exercises(
     request: Request,
@@ -416,13 +403,13 @@ def clear_exercises(
     return {"deleted": count}
 
 
-@app.post('/exercises/seed', status_code=200, tags=["Exercises"])
+@app.post("/exercises/seed", status_code=200, tags=["Exercises"])
 @limiter.limit("5/minute")
 def seed_exercises(
     request: Request,
     repository: RepositoryDep,
     current_user: Annotated[UserTable, Depends(get_current_user)],
-    split: str = 'ppl',
+    split: str = "ppl",
 ) -> dict:
     """Seed default sample exercises for the current user.
 
@@ -434,15 +421,16 @@ def seed_exercises(
     Returns:
         Count of exercises seeded.
     """
-    if split not in ('ppl', 'ab', 'fullbody'):
-        split = 'ppl'
+    if split not in ("ppl", "ab", "fullbody"):
+        split = "ppl"
     count = repository.seed_initial_data(current_user.id, split=split)
     return {"seeded": count}
 
 
 # ============ Authentication Endpoints ============
 
-@app.post('/auth/google', response_model=Token, tags=["Authentication"])
+
+@app.post("/auth/google", response_model=Token, tags=["Authentication"])
 @limiter.limit(lambda: ratelimit_settings.auth_limit)
 def google_login(
     request: Request,
@@ -475,8 +463,7 @@ def google_login(
         logger.info(f"New user {user.email} created via Google")
 
     access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        data={"sub": str(user.id), "role": user.role}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     refresh_token = create_refresh_token(user.id)
 
@@ -484,11 +471,11 @@ def google_login(
         access_token=access_token,
         token_type="bearer",
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        refresh_token=refresh_token
+        refresh_token=refresh_token,
     )
 
 
-@app.post('/auth/register', response_model=Token, status_code=201, tags=["Authentication"])
+@app.post("/auth/register", response_model=Token, status_code=201, tags=["Authentication"])
 @limiter.limit(lambda: ratelimit_settings.auth_limit)
 def register_email(
     request: Request,
@@ -543,7 +530,7 @@ def register_email(
     )
 
 
-@app.post('/auth/login', response_model=Token, tags=["Authentication"])
+@app.post("/auth/login", response_model=Token, tags=["Authentication"])
 @limiter.limit(lambda: ratelimit_settings.auth_limit)
 def login_email(
     request: Request,
@@ -588,7 +575,7 @@ def login_email(
     )
 
 
-@app.post('/auth/refresh', response_model=Token, tags=["Authentication"])
+@app.post("/auth/refresh", response_model=Token, tags=["Authentication"])
 @limiter.limit(lambda: ratelimit_settings.auth_limit)
 def refresh_token(
     request: Request,
@@ -619,16 +606,15 @@ def refresh_token(
 
     try:
         user_id = int(user_id_str)
-    except (ValueError, TypeError):
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    except (ValueError, TypeError) as e:
+        raise HTTPException(status_code=401, detail="Invalid refresh token") from e
 
     user = user_repo.get_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
 
     access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role},
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        data={"sub": str(user.id), "role": user.role}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     new_refresh = create_refresh_token(user.id)
 
@@ -640,7 +626,7 @@ def refresh_token(
     )
 
 
-@app.get('/auth/me', response_model=UserResponse, tags=["Authentication"])
+@app.get("/auth/me", response_model=UserResponse, tags=["Authentication"])
 @limiter.limit(lambda: ratelimit_settings.auth_limit)
 async def get_me(
     request: Request,
@@ -663,7 +649,7 @@ async def get_me(
     )
 
 
-@app.patch('/auth/me', response_model=UserResponse, tags=["Authentication"])
+@app.patch("/auth/me", response_model=UserResponse, tags=["Authentication"])
 @limiter.limit(lambda: ratelimit_settings.auth_limit)
 async def update_me(
     request: Request,
@@ -697,7 +683,7 @@ async def update_me(
     )
 
 
-@app.delete('/auth/me', status_code=status.HTTP_204_NO_CONTENT, tags=["Authentication"])
+@app.delete("/auth/me", status_code=status.HTTP_204_NO_CONTENT, tags=["Authentication"])
 @limiter.limit(lambda: ratelimit_settings.auth_limit)
 async def delete_me(
     request: Request,
@@ -719,7 +705,7 @@ async def delete_me(
     session.commit()
 
 
-@app.get('/admin/users', response_model=list[AdminUserResponse], tags=["Admin"])
+@app.get("/admin/users", response_model=list[AdminUserResponse], tags=["Admin"])
 @limiter.limit(lambda: ratelimit_settings.admin_limit)
 async def list_users(
     request: Request,
@@ -735,25 +721,28 @@ async def list_users(
     users = user_repo.get_all()
     result = []
     for u in users:
-        count = session.execute(
-            select(func.count()).select_from(ExerciseTable).where(
-                ExerciseTable.user_id == u.id
+        count = (
+            session.execute(
+                select(func.count()).select_from(ExerciseTable).where(ExerciseTable.user_id == u.id)
+            ).scalar()
+            or 0
+        )
+        result.append(
+            AdminUserResponse(
+                id=u.id,
+                email=u.email,
+                name=u.name,
+                picture_url=u.picture_url,
+                role=u.role,
+                disabled=u.disabled,
+                created_at=u.created_at,
+                exercise_count=count,
             )
-        ).scalar() or 0
-        result.append(AdminUserResponse(
-            id=u.id,
-            email=u.email,
-            name=u.name,
-            picture_url=u.picture_url,
-            role=u.role,
-            disabled=u.disabled,
-            created_at=u.created_at,
-            exercise_count=count,
-        ))
+        )
     return result
 
 
-@app.patch('/admin/users/{user_id}', response_model=AdminUserResponse, tags=["Admin"])
+@app.patch("/admin/users/{user_id}", response_model=AdminUserResponse, tags=["Admin"])
 @limiter.limit(lambda: ratelimit_settings.admin_limit)
 async def admin_update_user(
     request: Request,
@@ -790,11 +779,12 @@ async def admin_update_user(
     session.commit()
     session.refresh(target)
 
-    count = session.execute(
-        select(func.count()).select_from(ExerciseTable).where(
-            ExerciseTable.user_id == target.id
-        )
-    ).scalar() or 0
+    count = (
+        session.execute(
+            select(func.count()).select_from(ExerciseTable).where(ExerciseTable.user_id == target.id)
+        ).scalar()
+        or 0
+    )
 
     return AdminUserResponse(
         id=target.id,
@@ -808,7 +798,7 @@ async def admin_update_user(
     )
 
 
-@app.delete('/admin/users/{user_id}', status_code=204, tags=["Admin"])
+@app.delete("/admin/users/{user_id}", status_code=204, tags=["Admin"])
 @limiter.limit(lambda: ratelimit_settings.admin_limit)
 async def admin_delete_user(
     request: Request,
@@ -834,7 +824,7 @@ async def admin_delete_user(
     user_repo.delete_by_id(user_id)
 
 
-@app.get('/admin/stats', response_model=AdminStatsResponse, tags=["Admin"])
+@app.get("/admin/stats", response_model=AdminStatsResponse, tags=["Admin"])
 @limiter.limit(lambda: ratelimit_settings.admin_limit)
 async def admin_stats(
     request: Request,
@@ -842,26 +832,24 @@ async def admin_stats(
     session: Session = Depends(get_session),
 ) -> AdminStatsResponse:
     """Get platform-wide statistics (admin only)."""
-    total_users = session.execute(
-        select(func.count()).select_from(UserTable)
-    ).scalar() or 0
+    total_users = session.execute(select(func.count()).select_from(UserTable)).scalar() or 0
 
-    total_exercises = session.execute(
-        select(func.count()).select_from(ExerciseTable)
-    ).scalar() or 0
+    total_exercises = session.execute(select(func.count()).select_from(ExerciseTable)).scalar() or 0
 
-    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    seven_days_ago = datetime.now(UTC) - timedelta(days=7)
 
-    recent_signups = session.execute(
-        select(func.count()).select_from(UserTable).where(
-            UserTable.created_at >= seven_days_ago
-        )
-    ).scalar() or 0
+    recent_signups = (
+        session.execute(
+            select(func.count()).select_from(UserTable).where(UserTable.created_at >= seven_days_ago)
+        ).scalar()
+        or 0
+    )
 
     # Active users = users who have at least one exercise (proxy for activity)
-    active_users = session.execute(
-        select(func.count(func.distinct(ExerciseTable.user_id))).select_from(ExerciseTable)
-    ).scalar() or 0
+    active_users = (
+        session.execute(select(func.count(func.distinct(ExerciseTable.user_id))).select_from(ExerciseTable)).scalar()
+        or 0
+    )
 
     return AdminStatsResponse(
         total_users=total_users,
@@ -871,7 +859,7 @@ async def admin_stats(
     )
 
 
-@app.delete('/admin/exercises/{exercise_id}', status_code=204, tags=["Admin"])
+@app.delete("/admin/exercises/{exercise_id}", status_code=204, tags=["Admin"])
 @limiter.limit(lambda: ratelimit_settings.admin_limit)
 async def admin_delete_exercise(
     request: Request,
@@ -886,6 +874,6 @@ async def admin_delete_exercise(
     """
     exercise = session.get(ExerciseTable, exercise_id)
     if not exercise:
-        raise HTTPException(status_code=404, detail='Exercise not found')
+        raise HTTPException(status_code=404, detail="Exercise not found")
     session.delete(exercise)
     session.commit()

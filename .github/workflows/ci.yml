@@ -78,7 +78,7 @@ jobs:
 
       - name: Check for high severity issues
         run: |
-          if uv run bandit -r services/ -c pyproject.toml -ll -q 2>/dev/null | grep -q "High"; then
+          if uv run bandit -r services/ -c pyproject.toml -ll -q 2>/dev/null | grep -q "Severity: High"; then
             echo "::error::High severity security issues found!"
             exit 1
           fi

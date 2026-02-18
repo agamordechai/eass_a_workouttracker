@@ -11,16 +11,22 @@ To run these tests:
 
 These tests are OPTIONAL - rate limiting works correctly in production.
 """
-import time
+
+from datetime import timedelta
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel
+
 from services.api.src.api import app, limiter
-from services.api.src.auth import create_access_token, Role
-from datetime import timedelta
+from services.api.src.auth import create_access_token
+from services.api.src.database.database import engine
+from services.api.src.database.db_models import UserTable
 
 # Try to connect to Redis to check if it's available
 try:
     import redis
+
     r = redis.from_url("redis://localhost:6379/2", socket_connect_timeout=1)
     r.ping()
     REDIS_AVAILABLE = True
@@ -35,27 +41,56 @@ pytestmark = [
     pytest.mark.redis,
     pytest.mark.skipif(
         not REDIS_AVAILABLE,
-        reason="Redis required for rate limiting tests. Start Redis: docker run -d -p 6379:6379 redis:7-alpine"
-    )
+        reason="Redis required for rate limiting tests. Start Redis: docker run -d -p 6379:6379 redis:7-alpine",
+    ),
 ]
+
+
+def _ensure_user(session: Session, user_id: int, role: str = "user") -> None:
+    """Ensure a test user exists in the database."""
+    user = session.get(UserTable, user_id)
+    if user is None:
+        user = UserTable(
+            id=user_id,
+            google_id=f"test-ratelimit-{user_id}",
+            email=f"ratelimit-user{user_id}@example.com",
+            name=f"Rate Limit Test User {user_id}",
+            role=role,
+        )
+        session.add(user)
+        session.commit()
+
+
+# Bootstrap DB tables and test users
+SQLModel.metadata.create_all(engine)
+with Session(engine) as _session:
+    _ensure_user(_session, 10, "user")
+    _ensure_user(_session, 11, "admin")
+    _ensure_user(_session, 12, "user")
+    _ensure_user(_session, 13, "user")
+    _ensure_user(_session, 14, "readonly")
 
 client = TestClient(app)
 
+# User IDs for test tokens
+_USER_ID = 10
+_ADMIN_ID = 11
+_USER2_ID = 12
+_USER3_ID = 13
+_READONLY_ID = 14
 
-def get_auth_header(username: str, role: str) -> dict:
+
+def get_auth_header(user_id: int, role: str) -> dict:
     """Create authorization header with JWT token.
 
     Args:
-        username: Username for the token
+        user_id: Numeric user ID for the token subject
         role: User role (admin, user, readonly)
 
     Returns:
         Dictionary with Authorization header
     """
-    token = create_access_token(
-        data={"sub": username, "role": role},
-        expires_delta=timedelta(minutes=30)
-    )
+    token = create_access_token(data={"sub": str(user_id), "role": role}, expires_delta=timedelta(minutes=30))
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -93,7 +128,7 @@ class TestRateLimitHeaders:
         """Verify rate limiting works even without headers (headers_enabled=False)."""
         # Note: X-RateLimit-* headers are disabled due to FastAPI response_model compatibility
         # Rate limiting still works, just without the informational headers
-        response = client.get("/exercises")
+        response = client.get("/exercises", headers=get_auth_header(_USER_ID, "user"))
 
         # Should get successful response
         assert response.status_code == 200
@@ -104,13 +139,14 @@ class TestRateLimitExceeded:
 
     def test_rate_limit_exceeded_returns_429(self):
         """Verify that exceeding rate limit returns 429 status code."""
-        # Make requests until limited (anonymous user on GET /exercises = 60/min)
+        # Make requests until limited (authenticated user on GET /exercises = 120/min)
         endpoint = "/exercises"
+        headers = get_auth_header(_USER_ID, "user")
 
         # Make many requests quickly
         responses = []
-        for _ in range(70):
-            response = client.get(endpoint)
+        for _ in range(130):
+            response = client.get(endpoint, headers=headers)
             responses.append(response)
             if response.status_code == 429:
                 break
@@ -135,7 +171,7 @@ class TestRateLimitExceeded:
         """Verify rate limits reset after time window."""
         # Note: Headers are disabled, so we just verify basic functionality
         # In production, rate limits reset after the time window (60 seconds)
-        response = client.get("/exercises")
+        response = client.get("/exercises", headers=get_auth_header(_USER_ID, "user"))
         assert response.status_code in [200, 429]  # Could be limited or not depending on previous tests
 
 
@@ -146,20 +182,18 @@ class TestAuthenticatedRateLimits:
         """Verify authenticated users have separate rate limit counters."""
         # Note: Headers disabled, so we test by making requests
         # Anonymous and authenticated users have separate counters based on key_func
-        user_headers = get_auth_header("user", "user")
+        user_headers = get_auth_header(_USER_ID, "user")
 
-        # Both should work initially
-        response_anon = client.get("/exercises")
+        # Authenticated user should work
         response_auth = client.get("/exercises", headers=user_headers)
 
-        assert response_anon.status_code in [200, 429]
         assert response_auth.status_code in [200, 429]
 
     def test_admin_highest_limit(self):
         """Verify admin and user have separate rate limit counters."""
         # Note: Headers disabled, test functionality instead
-        user_headers = get_auth_header("user", "user")
-        admin_headers = get_auth_header("admin", "admin")
+        user_headers = get_auth_header(_USER_ID, "user")
+        admin_headers = get_auth_header(_ADMIN_ID, "admin")
 
         # Both should have their own counters
         response_user = client.get("/exercises", headers=user_headers)
@@ -175,9 +209,9 @@ class TestEndpointSpecificLimits:
     def test_auth_endpoint_has_limit(self):
         """Verify /auth endpoints have rate limiting."""
         # Note: Headers disabled
-        response = client.get("/auth/me", headers=get_auth_header("user", "user"))
+        response = client.get("/auth/me", headers=get_auth_header(_USER_ID, "user"))
         # Should work or be rate limited
-        assert response.status_code in [200, 401, 429]
+        assert response.status_code in [200, 429]
 
     def test_health_endpoint_exempt(self):
         """Verify /health endpoint is exempt from rate limiting."""
@@ -201,7 +235,8 @@ class TestWriteOperationLimits:
         # Note: Headers disabled, just verify endpoints work
         response_write = client.post(
             "/exercises",
-            json={"name": "Test Exercise", "sets": 3, "reps": 10}
+            json={"name": "Test Exercise", "sets": 3, "reps": 10},
+            headers=get_auth_header(_USER_ID, "user"),
         )
 
         # Should work or be rate limited
@@ -212,13 +247,14 @@ class TestIPBasedLimiting:
     """Test IP-based rate limiting for anonymous users."""
 
     def test_anonymous_requests_limited_by_ip(self):
-        """Verify anonymous requests are rate limited by IP address."""
-        # Make multiple anonymous requests
-        successful = make_requests_until_limited("/exercises", limit=60)
+        """Verify authenticated requests are rate limited."""
+        headers = get_auth_header(_USER_ID, "user")
+        # Make multiple authenticated requests
+        successful = make_requests_until_limited("/exercises", headers=headers, limit=120)
 
-        # Should allow approximately 60 requests (anonymous read limit)
+        # Should allow approximately 120 requests (authenticated read limit)
         # Allow some margin for timing
-        assert 55 <= successful <= 65
+        assert 110 <= successful <= 125
 
 
 class TestUserBasedLimiting:
@@ -226,8 +262,8 @@ class TestUserBasedLimiting:
 
     def test_different_users_separate_counters(self):
         """Verify different users have separate rate limit counters."""
-        user1_headers = get_auth_header("user1", "user")
-        user2_headers = get_auth_header("user2", "user")
+        user1_headers = get_auth_header(_USER2_ID, "user")
+        user2_headers = get_auth_header(_USER3_ID, "user")
 
         # Make a few requests with user1
         for _ in range(5):
@@ -245,21 +281,21 @@ class TestRoleBasedLimits:
 
     def test_admin_role_works(self):
         """Verify ADMIN role has rate limiting."""
-        admin_headers = get_auth_header("admin", "admin")
+        admin_headers = get_auth_header(_ADMIN_ID, "admin")
 
         response = client.get("/exercises", headers=admin_headers)
         assert response.status_code in [200, 429]
 
     def test_user_role_works(self):
         """Verify USER role has rate limiting."""
-        user_headers = get_auth_header("user", "user")
+        user_headers = get_auth_header(_USER_ID, "user")
 
         response = client.get("/exercises", headers=user_headers)
         assert response.status_code in [200, 429]
 
     def test_readonly_role_works(self):
         """Verify READONLY role has rate limiting."""
-        readonly_headers = get_auth_header("readonly", "readonly")
+        readonly_headers = get_auth_header(_READONLY_ID, "readonly")
 
         response = client.get("/exercises", headers=readonly_headers)
         assert response.status_code in [200, 429]
@@ -270,12 +306,12 @@ class TestAdminEndpoints:
 
     def test_admin_endpoint_has_rate_limiting(self):
         """Verify /admin/* endpoints have rate limiting."""
-        admin_headers = get_auth_header("admin", "admin")
+        admin_headers = get_auth_header(_ADMIN_ID, "admin")
 
         response = client.get("/admin/users", headers=admin_headers)
 
         # Should work or be rate limited
-        assert response.status_code in [200, 401, 403, 429]
+        assert response.status_code in [200, 429]
 
 
 class TestGracefulDegradation:
@@ -289,7 +325,7 @@ class TestGracefulDegradation:
         """
         # This test would require mocking Redis failure
         # For now, just verify the API works normally
-        response = client.get("/exercises")
+        response = client.get("/exercises", headers=get_auth_header(_USER_ID, "user"))
         assert response.status_code == 200
 
 
@@ -298,9 +334,10 @@ class TestRateLimitErrorFormat:
 
     def test_429_response_format(self):
         """Verify 429 response has correct JSON format."""
+        headers = get_auth_header(_USER_ID, "user")
         # Make requests until rate limited
-        for _ in range(70):
-            response = client.get("/exercises")
+        for _ in range(130):
+            response = client.get("/exercises", headers=headers)
             if response.status_code == 429:
                 data = response.json()
 

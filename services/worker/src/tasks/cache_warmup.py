@@ -5,7 +5,6 @@ import logging
 from typing import Any
 
 from ..clients import get_ai_coach_client
-from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,6 @@ async def warmup_ai_cache(ctx: dict[str, Any]) -> dict[str, int]:
     Returns:
         Summary dict with total_requests, successful, failed counts
     """
-    settings = get_settings()
     logger.info("Starting daily AI cache warmup job")
 
     client = get_ai_coach_client()
@@ -65,10 +63,7 @@ async def warmup_ai_cache(ctx: dict[str, Any]) -> dict[str, int]:
                     total_requests += 1
                     successful += 1
 
-                    logger.debug(
-                        f"Warmed cache: muscle={muscle}, "
-                        f"equipment={equipment}, duration={duration}min"
-                    )
+                    logger.debug(f"Warmed cache: muscle={muscle}, equipment={equipment}, duration={duration}min")
 
                     # Rate limiting - 0.5s between requests
                     await asyncio.sleep(0.5)
@@ -77,14 +72,10 @@ async def warmup_ai_cache(ctx: dict[str, Any]) -> dict[str, int]:
                     total_requests += 1
                     failed += 1
                     logger.warning(
-                        f"Failed to warm cache for muscle={muscle}, "
-                        f"equipment={equipment}, duration={duration}min: {e}"
+                        f"Failed to warm cache for muscle={muscle}, equipment={equipment}, duration={duration}min: {e}"
                     )
 
-    logger.info(
-        f"AI cache warmup complete: total={total_requests}, "
-        f"successful={successful}, failed={failed}"
-    )
+    logger.info(f"AI cache warmup complete: total={total_requests}, successful={successful}, failed={failed}")
 
     return {
         "total_requests": total_requests,

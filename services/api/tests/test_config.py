@@ -1,14 +1,8 @@
 """Tests for the database configuration."""
-import pytest
-from pathlib import Path
+
 from _pytest.monkeypatch import MonkeyPatch
-from services.api.src.database.config import (
-    DatabaseSettings,
-    APISettings,
-    AppSettings,
-    get_settings,
-    reload_settings
-)
+
+from services.api.src.database.config import APISettings, AppSettings, DatabaseSettings, get_settings, reload_settings
 
 
 def test_database_settings_defaults() -> None:
@@ -126,11 +120,10 @@ def test_reload_settings_creates_new_instance() -> None:
         - reload_settings returns a valid AppSettings instance
         - The returned instance is functional (has expected attributes)
     """
-    original = get_settings()
+    get_settings()  # ensure settings are cached
     reloaded = reload_settings()
 
     # Should return a settings instance
     assert isinstance(reloaded, AppSettings)
     assert reloaded.db is not None
     assert reloaded.api is not None
-
