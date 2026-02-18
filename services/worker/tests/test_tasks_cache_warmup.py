@@ -82,8 +82,8 @@ async def test_warmup_ai_cache_request_format():
 
         # Check first request format
         first_request = requests_made[0]
-        assert "muscle_group" in first_request
-        assert "equipment" in first_request
-        assert "duration_minutes" in first_request
-        assert isinstance(first_request["equipment"], list)
-        assert isinstance(first_request["duration_minutes"], int)
+        assert "focus_area" in first_request
+        assert "equipment_available" in first_request
+        assert "session_duration_minutes" in first_request
+        assert isinstance(first_request["equipment_available"], list)
+        assert isinstance(first_request["session_duration_minutes"], int)

@@ -101,6 +101,10 @@ limiter.enabled = False
 
 schema = schemathesis.openapi.from_asgi("/openapi.json", app)
 
+# Disable the coverage phase — schemathesis 4.x coverage-guided generation
+# produces unsatisfiable strategies for endpoints without complex parameters.
+schema.config.phases.coverage.enabled = False
+
 
 @schema.hook
 def map_headers(ctx, headers):
@@ -115,21 +119,17 @@ def map_headers(ctx, headers):
 
 
 @schema.hook
-def filter_path_parameters(ctx, path_parameters):
-    """Filter out path parameters with unrealistic values that SQLite can't handle.
+def map_path_parameters(ctx, path_parameters):
+    """Clamp path parameters to values that SQLite can handle.
 
     SQLite INTEGER is limited to signed 64-bit (-9223372036854775808 to 9223372036854775807).
     Schemathesis generates very large integers that cause OverflowError.
-    We limit exercise_id to a reasonable range (1 to 1 million).
+    We limit IDs to a reasonable range (1 to 1 million).
     """
-    if path_parameters and "exercise_id" in path_parameters:
-        exercise_id = path_parameters["exercise_id"]
-        # Constrain to reasonable range (1 to 1 million)
-        if isinstance(exercise_id, int):
-            if exercise_id < 1:
-                path_parameters["exercise_id"] = 1
-            elif exercise_id > 1_000_000:
-                path_parameters["exercise_id"] = 1_000_000
+    if path_parameters:
+        for key in ("exercise_id", "user_id"):
+            if key in path_parameters and isinstance(path_parameters[key], int):
+                path_parameters[key] = max(1, min(path_parameters[key], 1_000_000))
     return path_parameters
 
 
@@ -185,8 +185,12 @@ def test_response_conforms_to_schema(case):
 
 @pytest.fixture()
 def client():
-    """TestClient with ASGI lifespan (seeds DB on startup)."""
+    """TestClient with ASGI lifespan and fresh test users."""
     with TestClient(app) as c:
+        # Re-ensure test users exist (schemathesis tests may have altered DB state)
+        with Session(engine) as session:
+            _ensure_user(session, 2, "user")
+            _ensure_user(session, 3, "admin")
         yield c
 
 

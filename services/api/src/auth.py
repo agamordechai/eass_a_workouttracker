@@ -144,6 +144,14 @@ class AdminUserResponse(BaseModel):
     created_at: datetime
     exercise_count: int
 
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def ensure_timezone(cls, v: datetime) -> datetime:
+        """Ensure created_at is timezone-aware (SQLite strips tzinfo)."""
+        if isinstance(v, datetime) and v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v
+
 
 class AdminUpdateUserRequest(BaseModel):
     """Request to update a user's role or disabled status (admin only)."""

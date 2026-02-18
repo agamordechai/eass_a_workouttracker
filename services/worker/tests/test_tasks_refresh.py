@@ -61,7 +61,7 @@ async def test_refresh_exercises_with_failures():
 async def test_refresh_exercises_config():
     """Test that refresh task uses correct configuration."""
     from services.worker.src.tasks.refresh import refresh_exercises
-    from scripts.refresh import RefreshConfig
+    from dev.refresh import RefreshConfig
 
     with patch("services.worker.src.tasks.refresh.ExerciseRefresher") as MockRefresher:
         mock_refresher = MagicMock()
