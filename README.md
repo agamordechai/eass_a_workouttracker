@@ -1,363 +1,130 @@
-# Workout Tracker API
+# GrindLogger
 
-A FastAPI-based REST API for managing workout exercises with PostgreSQL persistence and AI-powered coaching.
+A full-stack workout tracking app with an AI-powered coaching system. Log exercises, track volume analytics, and get personalized routine recommendations from an integrated Claude-based coach.
 
-## Prerequisites
+## Features
 
-- **Docker** and **Docker Compose** (recommended)
-- **Anthropic API Key** (for AI Coach features - uses Claude)
-- Or for local development:
-  - Python 3.12+
-  - [uv](https://docs.astral.sh/uv/) package manager
+- **Workout tracking** — manage exercises across multi-day splits (A/B/C etc.)
+- **Volume analytics** — per-day volume charts with bodyweight exercise support
+- **AI Coach** — chat, generate full routine splits, and import them directly into your tracker
+- **Auth** — email/password and Google OAuth
+- **Admin dashboard** — user management and platform stats
+
+## Tech Stack
+
+| Layer | Tech |
+|---|---|
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| API | FastAPI, SQLModel, PostgreSQL |
+| AI Coach | FastAPI, Pydantic AI, Anthropic Claude |
+| Cache | Redis |
+| Auth | JWT (access + refresh tokens), Google OAuth |
+| Infra | Docker, Docker Compose |
+
+## Quick Start
+
+```bash
+# 1. Clone and copy env template
+git clone https://github.com/your-username/grindlogger.git
+cd grindlogger
+cp .env.example .env
+
+# 2. Add your Anthropic API key to .env (required for AI Coach)
+# ANTHROPIC_API_KEY=sk-ant-...
+
+# 3. Start all services
+docker compose up -d
+
+# 4. Open the app
+open http://localhost:3000
+```
+
+**Running services:**
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+| AI Coach | http://localhost:8001 |
+| AI Coach Docs | http://localhost:8001/docs |
 
 ## Project Structure
 
 ```
-├── services/
-│   ├── shared/              # Shared library for all services
-│   │   ├── models/          # Common Pydantic models
-│   │   ├── clients/         # Base HTTP clients
-│   │   └── config/          # Shared configuration utilities
-│   │
-│   ├── api/                 # FastAPI REST service
-│   │   ├── Dockerfile       # API container definition
-│   │   ├── pyproject.toml   # API-specific dependencies
-│   │   ├── src/
-│   │   │   ├── api.py       # FastAPI application
-│   │   │   └── database/    # Database models, config, repository
-│   │   └── tests/           # API tests
-│   │
-│   ├── ai_coach/            # AI Workout Coach (Pydantic AI)
-│   │   ├── Dockerfile       # AI Coach container definition
-│   │   ├── pyproject.toml   # AI Coach dependencies
-│   │   ├── src/
-│   │   │   ├── api.py       # FastAPI application
-│   │   │   ├── agent.py     # Pydantic AI agent
-│   │   │   ├── models.py    # Request/Response models
-│   │   │   └── workout_client.py  # HTTP client for main API
-│   │   └── tests/           # AI Coach tests
-│   │
-│   └── frontend/            # React frontend
-│       ├── Dockerfile       # Frontend container definition
-│       └── src/             # React components
-│
-├── docs/                    # Documentation
-│   ├── EX3-notes.md         # EX3 capstone documentation
-│   └── runbooks/
-│       └── compose.md       # Docker Compose runbook
-│
-├── data/                    # Local development data
-│   └── exports/             # Exported CSV/JSON files
-│
-├── scripts/                 # Utility scripts
-│   ├── api.http             # HTTP requests for API testing
-│   ├── cli.py               # Typer CLI for operators
-│   ├── test_cli.py          # Tests for Typer CLI
-│   ├── seed.py              # Database seeding script
-│   ├── refresh.py           # Async refresh with Redis idempotency
-│   ├── test_refresh.py      # Tests for refresh script
-│   └── demo.sh              # Demo script for EX3
-│
-├── docker-compose.yml       # Multi-service orchestration
-├── .env.example             # Environment variable template
-└── pyproject.toml           # Root project dependencies (for local dev)
+services/
+├── api/            # FastAPI REST service (exercises, auth, admin)
+├── ai_coach/       # AI coaching service (chat, recommendations, analysis)
+├── frontend/       # React SPA
+└── shared/         # Shared Pydantic models and utilities
+
+scripts/            # Operator CLI and seeding utilities
+docker-compose.yml
+.env.example
 ```
 
-## Setup
-
-### Option 1: Docker Compose (Recommended)
-
-```bash
-# 1. Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 2. Generate dependency lock file
-uv sync
-
-# 3. Create .env file with your Anthropic API key
-cp .env.example .env
-# Edit .env and add: ANTHROPIC_API_KEY=your-anthropic-key-here
-
-# 4. Start all services (database, API, AI Coach, frontend)
-docker compose up -d
-
-# 5. Check all services are running
-docker compose ps
-
-# 6. Open frontend
-open http://localhost:3000
-
-# 7. Stop all services
-docker compose down
-
-# 8. Stop and remove all data (fresh start)
-docker compose down -v
-```
-
-**Services:**
-- **PostgreSQL Database**: Internal (port 5432)
-- **Redis**: Internal (port 6379)
-- **API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-- **AI Coach**: http://localhost:8001
-- **AI Coach Docs**: http://localhost:8001/docs
-- **Frontend**: http://localhost:3000
-
-### Option 2: Local Development (Without Docker)
-
-```bash
-# Install dependencies using uv
-uv sync
-
-# Terminal 1 - Start API
-uv run uvicorn services.api.src.api:app --reload
-
-# Terminal 2 - Start AI Coach (requires ANTHROPIC_API_KEY)
-export ANTHROPIC_API_KEY=your-key-here
-uv run uvicorn services.ai_coach.src.api:app --port 8001 --reload
-```
-
-> **Note:** Local development uses SQLite by default. Set `DATABASE_URL` environment variable to use PostgreSQL.
-
-## Configuration
-
-Configuration files are in the project root:
-- **`docker-compose.yml`** - Multi-service orchestration
-- **`.env.example`** - Environment variable template
-
-> **Note:** Your actual `.env` file should be in the project root (it's gitignored).
-
-### Environment Variables
-
-The application uses sensible defaults. Override via environment variables:
+## Environment Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_PATH` | `data/workout_tracker.db` | Database file path |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | — | Required for AI Coach (Claude) |
+| `AI_MODEL` | `anthropic:claude-3-5-haiku-latest` | Claude model to use |
+| `DATABASE_URL` | SQLite (local) / Postgres (Docker) | Database connection string |
 | `API_PORT` | `8000` | API server port |
-| `API_DEBUG` | `false` | Enable debug mode |
-| `APP_LOG_LEVEL` | `INFO` | Logging level |
+| `APP_LOG_LEVEL` | `INFO` | Log level |
 | `APP_CORS_ORIGINS` | `*` | Allowed CORS origins |
-| `ANTHROPIC_API_KEY` | (required) | Anthropic API key for AI Coach (Claude) |
-| `AI_MODEL` | `anthropic:claude-3-5-haiku-latest` | AI model to use |
 
-### Setup Environment
+> The full variable reference is in `.env.example`.
 
-```bash
-# Copy the template
-cp .env.example .env
+## Development
 
-# Edit .env and add your Anthropic API key
-echo "ANTHROPIC_API_KEY=your-anthropic-api-key-here" >> .env
-```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Welcome message |
-| GET | `/health` | Health check with DB status |
-| GET | `/exercises` | List all exercises |
-| GET | `/exercises/{id}` | Get exercise by ID |
-| POST | `/exercises` | Create new exercise |
-| PATCH | `/exercises/{id}` | Update exercise (partial) |
-| DELETE | `/exercises/{id}` | Delete exercise |
-
-### Example API Calls
+**Prerequisites:** Python 3.12+, [uv](https://docs.astral.sh/uv/), Node.js 18+
 
 ```bash
-# Get all exercises
-curl http://localhost:8000/exercises
+# Install Python dependencies
+uv sync
 
-# Create new exercise
-curl -X POST http://localhost:8000/exercises \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Deadlift", "sets": 3, "reps": 8, "weight": 100.0}'
+# Terminal 1 — API (SQLite by default)
+uv run uvicorn services.api.src.api:app --reload
 
-# Update exercise
-curl -X PATCH http://localhost:8000/exercises/1 \
-  -H "Content-Type: application/json" \
-  -d '{"weight": 105.0}'
+# Terminal 2 — AI Coach
+ANTHROPIC_API_KEY=your-key uv run uvicorn services.ai_coach.src.api:app --port 8001 --reload
 
-# Delete exercise
-curl -X DELETE http://localhost:8000/exercises/1
-```
-
-The `scripts/api.http` file contains ready-to-use HTTP requests for VS Code REST Client or JetBrains HTTP Client.
-
-## AI Coach Service
-
-The AI Coach provides intelligent workout recommendations and fitness advice using OpenAI's GPT models through Pydantic AI.
-
-### AI Coach Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check with service status |
-| POST | `/chat` | Chat with AI coach |
-| POST | `/recommend` | Get workout recommendations |
-| GET | `/analyze` | Analyze current routine |
-| GET | `/exercises` | Proxy to main API |
-
-### Example AI Coach Calls
-
-```bash
-# Chat with AI coach
-curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What exercises should I add for a balanced routine?", "include_workout_context": true}'
-
-# Get workout recommendation for back
-curl -X POST http://localhost:8001/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"focus_area": "back", "session_duration_minutes": 45}'
-
-# Analyze current workout
-curl http://localhost:8001/analyze
-```
-
-## User Interface
-
-### React Frontend
-
-A modern React/TypeScript single-page application for managing workouts.
-
-**Features:**
-- Exercise management (create, read, update, delete)
-- Workout metrics and statistics
-- AI Coach chat integration
-- Workout recommendations panel
-- Responsive design
-
-**Access:**
-```bash
-# With Docker (recommended)
-docker compose up -d
-# Access at http://localhost:3000
-
-# For frontend development
+# Terminal 3 — Frontend
 cd services/frontend
 npm install
 npm run dev
 ```
 
-### Typer CLI (Operator Tools)
-
-A command-line interface for database management and operator tasks.
-
-**Available Commands:**
-```bash
-# Show all available commands
-uv run python scripts/cli.py --help
-
-# Seed database with sample exercises
-uv run python scripts/cli.py seed --count 10
-
-# Reset database (WARNING: deletes all data)
-uv run python scripts/cli.py reset --sample 5 --yes
-
-# Export exercises to CSV/JSON
-uv run python scripts/cli.py export --format csv
-uv run python scripts/cli.py export --format json --output data/exports/
-uv run python scripts/cli.py export --day A --format csv
-
-# Show workout statistics
-uv run python scripts/cli.py stats
-
-# List exercises in a table
-uv run python scripts/cli.py list
-uv run python scripts/cli.py list --day A --limit 10
-
-# Display database information
-uv run python scripts/cli.py info
-```
-
-**Why Both React and Typer CLI?**
-- **React Frontend**: User-facing interface for workout tracking (professor preference over Streamlit)
-- **Typer CLI**: Operator tools for database management, bulk operations, and automation
-
-
 ## Running Tests
 
-### Quick Commands (Recommended)
-
 ```bash
-# Fastest test run (skips slow Schemathesis tests) - 13 seconds
-make test-fast
-
-# All tests including property-based tests - 25 seconds
-make test
-
-# Only slow property-based tests
-make test-slow
-
-# With coverage report
-make test-coverage
-
-# Show all available commands
-make help
-```
-
-### Manual Test Commands
-
-```bash
-# Run all tests
+# All tests
 uv run pytest
 
-# Run with verbose output
-uv run pytest -v
-
-# Run specific test files
-uv run pytest services/api/tests/test_api.py -v      # API tests
-uv run pytest services/api/tests/test_auth.py -v     # Auth & scope tests
-uv run pytest services/ai_coach/tests/ -v            # AI Coach tests
-uv run pytest scripts/test_refresh.py -v             # Async refresh tests
-uv run pytest scripts/test_cli.py -v                 # Typer CLI tests
-
-# Run with coverage
-uv run pytest --cov=services
-
-# Skip slow tests (fastest - recommended for development)
+# Skip slow tests (faster iteration)
 uv run pytest -m "not slow" -q
+
+# Specific suites
+uv run pytest services/api/tests/ -v
+uv run pytest services/ai_coach/tests/ -v
+
+# With coverage
+uv run pytest --cov=services
 ```
 
-**Speed Comparison:**
-- `make test-fast`: ~13 seconds (recommended for development)
-- `make test`: ~25 seconds (before submission)
-- Full test suite: 106 passing, 16 non-critical failures
+## AI Coach
 
-See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) for detailed testing documentation.
+The AI Coach runs as a separate service and talks to the main API to fetch workout context. Users supply their own Anthropic API key in Settings (stored in localStorage, sent per-request via `X-Anthropic-Key` header).
 
+**Endpoints:**
 
-## Database
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/chat` | Free-form chat with context awareness |
+| `POST` | `/recommend` | Generate a multi-day routine split |
+| `GET` | `/analyze` | Analyze current routine and score muscle balance |
 
-- **Docker:** PostgreSQL 15 (data persists via Docker volume)
-- **Local dev:** SQLite (`data/workout_tracker.db`)
-- **Seed data:** Use the dashboard to add exercises, or run:
-  ```bash
-  uv run python scripts/seed.py
-  ```
+## License
 
-## Tech Stack
-
-- **Backend:** FastAPI 0.115+, Uvicorn
-- **Frontend:** React, TypeScript, Vite
-- **Database:** PostgreSQL 15 (Docker) / SQLite3 (local)
-- **Cache:** Redis 7
-- **AI:** Pydantic AI with Anthropic Claude
-- **Validation:** Pydantic 2.10+
-- **HTTP Client:** httpx
-- **Package Manager:** uv (Python), npm (frontend)
-- **Container:** Docker + Docker Compose
-
-## AI Assistance
-
-### Tools Used
-- **GitHub Copilot:** Code completion for FastAPI routes, Pydantic models, and test cases
-- **Claude (AI Assistant):** Architecture guidance, project restructuring, and documentation
-
-### How Outputs Were Verified
-- All generated code was tested locally using `pytest`
-- API endpoints verified via Swagger UI and `scripts/api.http`
-- Dashboard functionality tested manually in browser
-- Docker builds verified with `docker-compose up --build`
+MIT
