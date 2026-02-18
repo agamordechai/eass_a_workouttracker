@@ -19,6 +19,8 @@ class MuscleGroup(str, Enum):
     LEGS = "legs"
     CORE = "core"
     FULL_BODY = "full_body"
+    UPPER_LOWER = "upper_lower"
+    PUSH_PULL_LEGS = "push_pull_legs"
 
 
 class WorkoutContext(BaseModel):
@@ -50,6 +52,7 @@ class ChatResponse(BaseModel):
 class RecommendationRequest(BaseModel):
     """Request for workout recommendations."""
     focus_area: MuscleGroup | None = Field(default=None, description="Target muscle group")
+    custom_focus_area: str | None = Field(default=None, max_length=200, description="Freeform focus area (overrides focus_area when set)")
     equipment_available: list[str] = Field(
         default_factory=lambda: ["barbell", "dumbbells", "cables", "bodyweight"],
         description="Available equipment"
@@ -65,6 +68,7 @@ class ExerciseRecommendation(BaseModel):
     weight_suggestion: str | None = Field(default=None, description="Weight suggestion")
     notes: str | None = Field(default=None, description="Form tips or notes")
     muscle_group: MuscleGroup = Field(..., description="Primary muscle group")
+    workout_day: str = Field(default="A", description="Workout day assignment (A, B, C, etc.)")
 
 
 class WorkoutRecommendation(BaseModel):
@@ -75,6 +79,7 @@ class WorkoutRecommendation(BaseModel):
     estimated_duration_minutes: int = Field(..., description="Estimated duration")
     difficulty: str = Field(..., description="Workout difficulty level")
     tips: list[str] = Field(default_factory=list, description="General workout tips")
+    split_type: str = Field(default="Single Session", description="Split structure, e.g. 'Push/Pull/Legs', 'A/B Upper-Lower', 'Full Body'")
 
 
 class ProgressAnalysis(BaseModel):

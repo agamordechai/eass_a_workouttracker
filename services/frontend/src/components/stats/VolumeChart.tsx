@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getDayColor } from '../../lib/constants';
+import { getBodyweightKg } from '../../hooks/useBodyweight';
 import type { Exercise } from '../../types/exercise';
 
 interface VolumeChartProps {
@@ -9,10 +10,12 @@ interface VolumeChartProps {
 
 export function VolumeChart({ exercises }: VolumeChartProps) {
   const data = useMemo(() => {
+    const bwKg = getBodyweightKg() ?? 0;
     const byDay: Record<string, number> = {};
     for (const ex of exercises) {
       const day = (!ex.workout_day || ex.workout_day === 'None') ? 'Daily' : ex.workout_day;
-      byDay[day] = (byDay[day] || 0) + ex.sets * ex.reps * (ex.weight || 0);
+      const w = ex.weight != null ? ex.weight : bwKg;
+      byDay[day] = (byDay[day] || 0) + ex.sets * ex.reps * w;
     }
     return Object.entries(byDay)
       .map(([day, volume]) => ({ day, volume: Math.round(volume) }))

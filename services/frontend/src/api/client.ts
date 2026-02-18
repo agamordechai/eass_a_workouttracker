@@ -284,4 +284,50 @@ export async function getProgressAnalysis(): Promise<ProgressAnalysis> {
   return response.data;
 }
 
+/**
+ * Parse a reps string like "8-12" or "10" to an integer (lower bound).
+ */
+function parseReps(reps: string): number {
+  const match = reps.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 10;
+}
+
+/**
+ * Parse a weight suggestion string like "60kg" or "20 lbs" to a float (kg), or null.
+ */
+function parseWeight(weightSuggestion: string | undefined): number | null {
+  if (!weightSuggestion) return null;
+  const lower = weightSuggestion.toLowerCase();
+  if (lower.includes('bodyweight') || lower.includes('bw') || lower === '-') return null;
+  const match = weightSuggestion.match(/[\d.]+/);
+  if (!match) return null;
+  const val = parseFloat(match[0]);
+  // Convert lbs to kg if needed
+  if (lower.includes('lb') || lower.includes('pound')) return Math.round(val * 0.453592 * 10) / 10;
+  return val;
+}
+
+export interface ExerciseToImport {
+  name: string;
+  sets: number;
+  reps: string;
+  weight_suggestion?: string;
+  workout_day: string;
+}
+
+/**
+ * Append selected exercises to the user's routine (no data is deleted).
+ */
+export async function appendExercisesToRoutine(exercises: ExerciseToImport[]): Promise<void> {
+  for (const ex of exercises) {
+    await createExercise({
+      name: ex.name,
+      sets: ex.sets,
+      reps: parseReps(ex.reps),
+      weight: parseWeight(ex.weight_suggestion),
+      workout_day: ex.workout_day,
+    });
+  }
+}
+
 export default client;

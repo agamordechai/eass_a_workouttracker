@@ -10,7 +10,9 @@ export type MuscleGroup =
   | 'triceps'
   | 'legs'
   | 'core'
-  | 'full_body';
+  | 'full_body'
+  | 'upper_lower'
+  | 'push_pull_legs';
 
 export interface ChatRequest {
   message: string;
@@ -24,6 +26,7 @@ export interface ChatResponse {
 
 export interface RecommendationRequest {
   focus_area?: MuscleGroup;
+  custom_focus_area?: string;
   equipment_available?: string[];
   session_duration_minutes?: number;
 }
@@ -35,6 +38,7 @@ export interface ExerciseRecommendation {
   weight_suggestion?: string;
   notes?: string;
   muscle_group: MuscleGroup;
+  workout_day: string;
 }
 
 export interface WorkoutRecommendation {
@@ -44,6 +48,7 @@ export interface WorkoutRecommendation {
   estimated_duration_minutes: number;
   difficulty: string;
   tips: string[];
+  split_type: string;
 }
 
 export interface ProgressAnalysis {

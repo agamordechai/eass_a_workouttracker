@@ -22,6 +22,7 @@ class CoachDependencies:
     """Dependencies for the AI coach agent."""
     workout_context: WorkoutContext | None = None
     focus_area: str | None = None
+    custom_focus: str | None = None
     equipment: list[str] | None = None
     session_duration: int = 60
 
@@ -167,6 +168,7 @@ async def chat_with_coach(
 async def get_workout_recommendation(
     workout_context: WorkoutContext | None = None,
     focus_area: MuscleGroup | None = None,
+    custom_focus_area: str | None = None,
     equipment: list[str] | None = None,
     session_duration: int = 60,
     api_key: str | None = None,
@@ -183,27 +185,42 @@ async def get_workout_recommendation(
     Returns:
         Structured workout recommendation
     """
+    focus_label = (
+        custom_focus_area
+        or (focus_area.value.replace("_", "/").title() if focus_area else "Full Body")
+    )
+
     deps = CoachDependencies(
         workout_context=workout_context,
         focus_area=focus_area.value if focus_area else None,
+        custom_focus=custom_focus_area,
         equipment=equipment or ["barbell", "dumbbells", "cables", "bodyweight"],
         session_duration=session_duration
     )
 
-    prompt = f"""Generate a {session_duration}-minute workout recommendation.
-    
-Focus Area: {focus_area.value if focus_area else 'Full body/balanced'}
+    prompt = f"""Generate a complete workout routine recommendation.
+
+Session Duration: {session_duration} minutes per session
+Focus Area: {focus_label}
 Available Equipment: {', '.join(deps.equipment)}
 
 Please provide:
 1. A catchy workout title
-2. Brief description of the workout
-3. 4-6 exercises with sets, reps, and any notes
-4. Estimated duration
+2. Brief description of the routine
+3. 4-8 exercises, structured as a proper training split if full-body, or a single day if focused
+4. Estimated session duration in minutes
 5. Difficulty level (Beginner/Intermediate/Advanced)
 6. 2-3 general tips
+7. A split_type label (e.g. "Push/Pull/Legs", "Upper/Lower", "Full Body", "Single Day - Chest")
 
-Format each exercise with: name, sets, reps (can be a range like "8-12"), optional weight suggestion, optional form notes, and primary muscle group.
+IMPORTANT - Workout Day Assignment:
+- For a focused session (single muscle group): assign all exercises to workout_day "A"
+- For full body or multi-muscle routines: create a proper multi-day split:
+  * 2-day split: days "A" and "B"
+  * 3-day split: days "A", "B", and "C"
+  * Each exercise must have a workout_day field set to "A", "B", or "C"
+- Distribute exercises logically across days (e.g. push muscles on Day A, pull on B, legs on C)
+- Each exercise reps field must be a string like "8" or "8-12"
 
 If workout context is available, complement existing exercises rather than duplicate them."""
 

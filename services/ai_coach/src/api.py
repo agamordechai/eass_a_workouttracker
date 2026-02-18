@@ -219,6 +219,7 @@ async def recommend_workout(request: Request, rec_request: RecommendationRequest
         recommendation = await get_workout_recommendation(
             workout_context=workout_context,
             focus_area=rec_request.focus_area,
+            custom_focus_area=rec_request.custom_focus_area,
             equipment=rec_request.equipment_available,
             session_duration=rec_request.session_duration_minutes,
             api_key=anthropic_key,

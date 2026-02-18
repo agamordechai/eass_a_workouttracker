@@ -29,7 +29,7 @@ export function getDayColor(day: string) {
 export const ALL_DAYS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Daily'] as const;
 
 export const MUSCLE_GROUPS = [
-  { value: '', label: 'Any / Full Body' },
+  { value: 'full_body', label: 'Full Body' },
   { value: 'chest', label: 'Chest' },
   { value: 'back', label: 'Back' },
   { value: 'shoulders', label: 'Shoulders' },
@@ -37,6 +37,9 @@ export const MUSCLE_GROUPS = [
   { value: 'triceps', label: 'Triceps' },
   { value: 'legs', label: 'Legs' },
   { value: 'core', label: 'Core' },
+  { value: 'upper_lower', label: 'Upper / Lower Split' },
+  { value: 'push_pull_legs', label: 'Push / Pull / Legs Split' },
+  { value: 'other', label: 'Other…' },
 ] as const;
 
 export const EQUIPMENT_OPTIONS = [
