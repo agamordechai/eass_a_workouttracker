@@ -3,8 +3,8 @@
 from services.shared.models.exercise import (
     ExerciseBase,
     ExerciseCreate,
-    ExerciseResponse,
     ExerciseEditRequest,
+    ExerciseResponse,
     PaginatedExerciseResponse,
 )
 

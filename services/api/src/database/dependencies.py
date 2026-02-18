@@ -2,7 +2,9 @@
 
 Provides dependency injection for database sessions and repositories.
 """
+
 from typing import Annotated
+
 from fastapi import Depends
 from sqlmodel import Session
 
@@ -11,9 +13,7 @@ from services.api.src.database.sqlmodel_repository import ExerciseRepository
 from services.api.src.database.user_repository import UserRepository
 
 
-def get_exercise_repository(
-    session: Annotated[Session, Depends(get_session)]
-) -> ExerciseRepository:
+def get_exercise_repository(session: Annotated[Session, Depends(get_session)]) -> ExerciseRepository:
     """Provide an ExerciseRepository instance.
 
     Args:
@@ -25,9 +25,7 @@ def get_exercise_repository(
     return ExerciseRepository(session)
 
 
-def get_user_repository(
-    session: Annotated[Session, Depends(get_session)]
-) -> UserRepository:
+def get_user_repository(session: Annotated[Session, Depends(get_session)]) -> UserRepository:
     """Provide a UserRepository instance.
 
     Args:

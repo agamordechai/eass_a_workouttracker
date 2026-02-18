@@ -1,6 +1,5 @@
 """Tests for worker configuration."""
 
-import pytest
 from services.worker.src.config import Settings, get_settings
 
 

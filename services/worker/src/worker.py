@@ -56,10 +56,7 @@ async def startup(ctx: dict[str, Any]) -> None:
     if settings.schedule__enable_daily_warmup:
         logger.info(f"  - Daily warmup: ENABLED (daily at {settings.schedule__warmup_hour}:00 UTC)")
     if settings.schedule__enable_weekly_cleanup:
-        logger.info(
-            f"  - Weekly cleanup: ENABLED "
-            f"(Sunday at {settings.schedule__cleanup_hour}:00 UTC)"
-        )
+        logger.info(f"  - Weekly cleanup: ENABLED (Sunday at {settings.schedule__cleanup_hour}:00 UTC)")
 
     logger.info("=" * 60)
 
@@ -102,9 +99,7 @@ class WorkerSettings:
 
     if settings.schedule__enable_daily_warmup:
         # Run daily at configured hour (default 6 AM UTC)
-        cron_jobs.append(
-            cron(warmup_ai_cache, hour=settings.schedule__warmup_hour, minute=0, unique=True)
-        )
+        cron_jobs.append(cron(warmup_ai_cache, hour=settings.schedule__warmup_hour, minute=0, unique=True))
 
     if settings.schedule__enable_weekly_cleanup:
         # Run weekly on configured day at configured hour (default Sunday 2 AM UTC)

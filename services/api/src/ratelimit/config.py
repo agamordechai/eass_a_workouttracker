@@ -1,9 +1,10 @@
-from pydantic_settings import BaseSettings
 from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class RateLimitSettings(BaseSettings):
     """Rate limit configuration."""
+
     enabled: bool = Field(default=True)
     redis_url: str = Field(default="redis://redis:6379/2")
 

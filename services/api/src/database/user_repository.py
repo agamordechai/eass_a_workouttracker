@@ -1,4 +1,5 @@
 """Repository for user CRUD operations."""
+
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -133,9 +134,7 @@ class UserRepository:
         Returns:
             User if found, None otherwise.
         """
-        statement = select(UserTable).where(
-            func.lower(UserTable.email) == email.lower()
-        )
+        statement = select(UserTable).where(func.lower(UserTable.email) == email.lower())
         return self.session.exec(statement).first()
 
     def create_email_user(
@@ -208,9 +207,10 @@ class UserRepository:
         Returns:
             Number of users with the admin role.
         """
-        return self.session.execute(
-            select(func.count()).select_from(UserTable).where(UserTable.role == "admin")
-        ).scalar() or 0
+        return (
+            self.session.execute(select(func.count()).select_from(UserTable).where(UserTable.role == "admin")).scalar()
+            or 0
+        )
 
     def delete_by_id(self, user_id: int) -> bool:
         """Delete a user and their exercises by ID.
@@ -226,9 +226,7 @@ class UserRepository:
             return False
 
         # Delete all exercises belonging to this user
-        exercises = self.session.exec(
-            select(ExerciseTable).where(ExerciseTable.user_id == user_id)
-        ).all()
+        exercises = self.session.exec(select(ExerciseTable).where(ExerciseTable.user_id == user_id)).all()
         for exercise in exercises:
             self.session.delete(exercise)
 

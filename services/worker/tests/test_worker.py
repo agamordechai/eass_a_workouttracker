@@ -1,6 +1,5 @@
 """Tests for worker entry point."""
 
-import pytest
 from services.worker.src.worker import WorkerSettings
 
 

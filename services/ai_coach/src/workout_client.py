@@ -1,7 +1,8 @@
 """HTTP client for communicating with the Workout Tracker API."""
 
-import httpx
 import logging
+
+import httpx
 
 from services.ai_coach.src.config import get_settings
 from services.ai_coach.src.models import ExerciseFromAPI, WorkoutContext
@@ -27,10 +28,7 @@ class WorkoutAPIClient:
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                timeout=self.timeout
-            )
+            self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
         return self._client
 
     async def close(self) -> None:
@@ -71,8 +69,8 @@ class WorkoutAPIClient:
             data = response.json()
 
             # API returns paginated response: {'items': [...], 'page': 1, 'page_size': 20, 'total': N}
-            if isinstance(data, dict) and 'items' in data:
-                return [ExerciseFromAPI(**ex) for ex in data['items']]
+            if isinstance(data, dict) and "items" in data:
+                return [ExerciseFromAPI(**ex) for ex in data["items"]]
             else:
                 # Fallback for legacy non-paginated response
                 return [ExerciseFromAPI(**ex) for ex in data]
@@ -92,10 +90,7 @@ class WorkoutAPIClient:
         exercises = await self.get_exercises(auth_header=auth_header)
 
         # Calculate total volume
-        total_volume = sum(
-            ex.sets * ex.reps * (ex.weight or 0)
-            for ex in exercises
-        )
+        total_volume = sum(ex.sets * ex.reps * (ex.weight or 0) for ex in exercises)
 
         # Identify muscle groups (basic heuristic based on exercise names)
         muscle_groups = self._identify_muscle_groups(exercises)
@@ -104,7 +99,7 @@ class WorkoutAPIClient:
             exercises=exercises,
             total_volume=total_volume,
             exercise_count=len(exercises),
-            muscle_groups_worked=muscle_groups
+            muscle_groups_worked=muscle_groups,
         )
 
     def _identify_muscle_groups(self, exercises: list[ExerciseFromAPI]) -> list[str]:
@@ -123,7 +118,7 @@ class WorkoutAPIClient:
             "biceps": ["curl", "bicep"],
             "triceps": ["tricep", "extension", "dip", "pushdown"],
             "legs": ["squat", "leg", "lunge", "calf", "hamstring", "quad"],
-            "core": ["ab", "plank", "crunch", "core", "sit-up"]
+            "core": ["ab", "plank", "crunch", "core", "sit-up"],
         }
 
         found_groups = set()

@@ -23,15 +23,15 @@ from pathlib import Path
 import typer
 from rich import print as rprint
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.progress import track
+from rich.table import Table
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from services.api.src.database.database import init_db, get_session
+from services.api.src.database.database import get_session, init_db
 from services.api.src.database.sqlmodel_repository import ExerciseRepository
 from services.api.src.database.user_repository import UserRepository
 
@@ -77,10 +77,7 @@ def seed(
         uv run python scripts/cli.py seed --count 10
         uv run python scripts/cli.py seed --count 5 --force
     """
-    console.print(Panel.fit(
-        "[bold cyan]Workout Tracker - Database Seeding[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Workout Tracker - Database Seeding[/bold cyan]", border_style="cyan"))
 
     # Initialize database
     init_db()
@@ -117,13 +114,7 @@ def seed(
 
         for ex in created:
             weight_str = f"{ex.weight} kg" if ex.weight else "bodyweight"
-            table.add_row(
-                str(ex.id),
-                ex.name,
-                f"{ex.sets}×{ex.reps}",
-                weight_str,
-                ex.workout_day
-            )
+            table.add_row(str(ex.id), ex.name, f"{ex.sets}×{ex.reps}", weight_str, ex.workout_day)
 
         console.print(table)
 
@@ -146,10 +137,7 @@ def reset(
         uv run python scripts/cli.py reset --sample 5
         uv run python scripts/cli.py reset --yes
     """
-    console.print(Panel.fit(
-        "[bold red]⚠ DATABASE RESET WARNING ⚠[/bold red]",
-        border_style="red"
-    ))
+    console.print(Panel.fit("[bold red]⚠ DATABASE RESET WARNING ⚠[/bold red]", border_style="red"))
 
     if not yes:
         confirm = typer.confirm("This will DELETE all exercises. Continue?")
@@ -191,10 +179,7 @@ def export(
         uv run python scripts/cli.py export --format json --output data/exports/
         uv run python scripts/cli.py export --day A --format csv
     """
-    console.print(Panel.fit(
-        f"[bold cyan]Exporting Exercises ({format.upper()})[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit(f"[bold cyan]Exporting Exercises ({format.upper()})[/bold cyan]", border_style="cyan"))
 
     if format not in ["csv", "json"]:
         console.print(f"[red]✗ Invalid format: {format}. Use 'csv' or 'json'.[/red]")
@@ -230,20 +215,19 @@ def export(
         # Export
         if format == "csv":
             with open(filepath, "w", newline="") as f:
-                writer = csv.DictWriter(
-                    f,
-                    fieldnames=["id", "name", "sets", "reps", "weight", "workout_day"]
-                )
+                writer = csv.DictWriter(f, fieldnames=["id", "name", "sets", "reps", "weight", "workout_day"])
                 writer.writeheader()
                 for ex in exercises:
-                    writer.writerow({
-                        "id": ex.id,
-                        "name": ex.name,
-                        "sets": ex.sets,
-                        "reps": ex.reps,
-                        "weight": ex.weight if ex.weight is not None else "",
-                        "workout_day": ex.workout_day,
-                    })
+                    writer.writerow(
+                        {
+                            "id": ex.id,
+                            "name": ex.name,
+                            "sets": ex.sets,
+                            "reps": ex.reps,
+                            "weight": ex.weight if ex.weight is not None else "",
+                            "workout_day": ex.workout_day,
+                        }
+                    )
         else:  # json
             data = [
                 {
@@ -278,10 +262,7 @@ def stats(
     Example:
         uv run python scripts/cli.py stats
     """
-    console.print(Panel.fit(
-        "[bold cyan]Workout Statistics[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Workout Statistics[/bold cyan]", border_style="cyan"))
 
     with next(get_session()) as session:
         repo = ExerciseRepository(session)
@@ -303,10 +284,7 @@ def stats(
             by_day[day] = by_day.get(day, 0) + 1
 
         # Calculate total volume (sets × reps × weight)
-        total_volume = sum(
-            ex.sets * ex.reps * ex.weight
-            for ex in weighted
-        )
+        total_volume = sum(ex.sets * ex.reps * ex.weight for ex in weighted)
 
         # Display overall stats
         table = Table(title="📊 Overall Statistics", show_header=True, header_style="bold cyan")
@@ -344,11 +322,7 @@ def stats(
 
             for ex in top_heavy:
                 volume = ex.sets * ex.reps * (ex.weight or 0)
-                heavy_table.add_row(
-                    ex.name,
-                    f"{ex.weight} kg",
-                    f"{volume:,.1f} kg"
-                )
+                heavy_table.add_row(ex.name, f"{ex.weight} kg", f"{volume:,.1f} kg")
 
             console.print("\n", heavy_table, "\n")
 
@@ -393,14 +367,7 @@ def list(
 
         for ex in exercises:
             weight_str = f"{ex.weight} kg" if ex.weight else "bodyweight"
-            table.add_row(
-                str(ex.id),
-                ex.name,
-                str(ex.sets),
-                str(ex.reps),
-                weight_str,
-                ex.workout_day
-            )
+            table.add_row(str(ex.id), ex.name, str(ex.sets), str(ex.reps), weight_str, ex.workout_day)
 
         console.print(table)
         console.print(f"\n[dim]Showing {len(exercises)} exercises[/dim]\n")
@@ -415,18 +382,15 @@ def info(
     Example:
         uv run python scripts/cli.py info
     """
-    console.print(Panel.fit(
-        "[bold cyan]Database Information[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Database Information[/bold cyan]", border_style="cyan"))
 
     with next(get_session()) as session:
         repo = ExerciseRepository(session)
         exercises = repo.get_all(user_id)
 
         rprint(f"[cyan]Total exercises:[/cyan] {len(exercises)}")
-        rprint(f"[cyan]Database backend:[/cyan] SQLModel + PostgreSQL/SQLite")
-        rprint(f"[cyan]Repository:[/cyan] ExerciseRepository")
+        rprint("[cyan]Database backend:[/cyan] SQLModel + PostgreSQL/SQLite")
+        rprint("[cyan]Repository:[/cyan] ExerciseRepository")
 
         if exercises:
             first_id = min(ex.id for ex in exercises)

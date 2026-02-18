@@ -1,7 +1,9 @@
 """Configuration settings for the Workout Tracker API."""
+
 import os
 from pathlib import Path
 from typing import Literal
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -20,29 +22,13 @@ class DatabaseSettings(BaseSettings):
         timeout: Database connection timeout in seconds
     """
 
-    url: str | None = Field(
-        default=None,
-        description="PostgreSQL database URL (overrides path if set)"
-    )
+    url: str | None = Field(default=None, description="PostgreSQL database URL (overrides path if set)")
     path: Path = Field(
-        default=Path("data/workout_tracker.db"),
-        description="Path to the SQLite database file (used if url not set)"
+        default=Path("data/workout_tracker.db"), description="Path to the SQLite database file (used if url not set)"
     )
-    echo_sql: bool = Field(
-        default=False,
-        description="Echo SQL statements for debugging"
-    )
-    pool_size: int = Field(
-        default=5,
-        ge=1,
-        le=100,
-        description="Database connection pool size"
-    )
-    timeout: float = Field(
-        default=5.0,
-        ge=0.1,
-        description="Database connection timeout in seconds"
-    )
+    echo_sql: bool = Field(default=False, description="Echo SQL statements for debugging")
+    pool_size: int = Field(default=5, ge=1, le=100, description="Database connection pool size")
+    timeout: float = Field(default=5.0, ge=0.1, description="Database connection timeout in seconds")
 
     def __init__(self, **data) -> None:
         """Initialize database settings, checking DATABASE_URL env var.
@@ -52,16 +38,16 @@ class DatabaseSettings(BaseSettings):
                 If 'url' is not provided, checks for DATABASE_URL environment variable.
         """
         # Check for DATABASE_URL environment variable
-        if 'url' not in data:
-            data['url'] = os.environ.get('DATABASE_URL')
+        if "url" not in data:
+            data["url"] = os.environ.get("DATABASE_URL")
         super().__init__(**data)
 
     @property
     def is_postgres(self) -> bool:
         """Check if using PostgreSQL."""
-        return self.url is not None and self.url.startswith('postgresql')
+        return self.url is not None and self.url.startswith("postgresql")
 
-    @field_validator('path')
+    @field_validator("path")
     @classmethod
     def ensure_absolute_path(cls, v: Path) -> Path:
         """Convert relative paths to absolute paths."""
@@ -71,11 +57,7 @@ class DatabaseSettings(BaseSettings):
             v = (project_root / v).resolve()
         return v
 
-    model_config = SettingsConfigDict(
-        env_prefix='DB_',
-        case_sensitive=False,
-        extra='ignore'
-    )
+    model_config = SettingsConfigDict(env_prefix="DB_", case_sensitive=False, extra="ignore")
 
 
 class APISettings(BaseSettings):
@@ -94,55 +76,18 @@ class APISettings(BaseSettings):
         openapi_url: URL path for OpenAPI schema (set to None to disable)
     """
 
-    host: str = Field(
-        default="0.0.0.0",
-        description="Host address to bind the server"
-    )
-    port: int = Field(
-        default=8000,
-        ge=1,
-        le=65535,
-        description="Port number to listen on"
-    )
-    debug: bool = Field(
-        default=False,
-        description="Enable debug mode"
-    )
-    reload: bool = Field(
-        default=False,
-        description="Enable auto-reload on code changes"
-    )
-    workers: int = Field(
-        default=1,
-        ge=1,
-        description="Number of worker processes"
-    )
-    title: str = Field(
-        default="Workout Tracker",
-        description="API title"
-    )
-    description: str = Field(
-        default="A simple workout tracker app",
-        description="API description"
-    )
-    version: str = Field(
-        default="0.1.0",
-        description="API version"
-    )
-    docs_url: str | None = Field(
-        default="/docs",
-        description="URL path for API documentation"
-    )
-    openapi_url: str | None = Field(
-        default="/openapi.json",
-        description="URL path for OpenAPI schema"
-    )
+    host: str = Field(default="0.0.0.0", description="Host address to bind the server")
+    port: int = Field(default=8000, ge=1, le=65535, description="Port number to listen on")
+    debug: bool = Field(default=False, description="Enable debug mode")
+    reload: bool = Field(default=False, description="Enable auto-reload on code changes")
+    workers: int = Field(default=1, ge=1, description="Number of worker processes")
+    title: str = Field(default="Workout Tracker", description="API title")
+    description: str = Field(default="A simple workout tracker app", description="API description")
+    version: str = Field(default="0.1.0", description="API version")
+    docs_url: str | None = Field(default="/docs", description="URL path for API documentation")
+    openapi_url: str | None = Field(default="/openapi.json", description="URL path for OpenAPI schema")
 
-    model_config = SettingsConfigDict(
-        env_prefix='API_',
-        case_sensitive=False,
-        extra='ignore'
-    )
+    model_config = SettingsConfigDict(env_prefix="API_", case_sensitive=False, extra="ignore")
 
 
 class AppSettings(BaseSettings):
@@ -177,27 +122,23 @@ class AppSettings(BaseSettings):
                 - api: Optional pre-configured APISettings instance.
         """
         # Extract _env_file if provided
-        env_file = data.pop('_env_file', None)
+        env_file = data.pop("_env_file", None)
 
         # Initialize nested settings with the same env file if not already provided
-        if 'db' not in data:
-            data['db'] = DatabaseSettings(_env_file=env_file) if env_file else DatabaseSettings()
-        if 'api' not in data:
-            data['api'] = APISettings(_env_file=env_file) if env_file else APISettings()
+        if "db" not in data:
+            data["db"] = DatabaseSettings(_env_file=env_file) if env_file else DatabaseSettings()
+        if "api" not in data:
+            data["api"] = APISettings(_env_file=env_file) if env_file else APISettings()
 
         # Call parent init
         super().__init__(**data)
 
     # Google OAuth
-    google_client_id: str = Field(
-        default="",
-        description="Google OAuth 2.0 Client ID for sign-in verification"
-    )
+    google_client_id: str = Field(default="", description="Google OAuth 2.0 Client ID for sign-in verification")
 
     # Auto-admin configuration
     admin_emails: str = Field(
-        default="",
-        description="Comma-separated list of emails that should be auto-promoted to admin on login"
+        default="", description="Comma-separated list of emails that should be auto-promoted to admin on login"
     )
 
     @property
@@ -209,17 +150,10 @@ class AppSettings(BaseSettings):
 
     # Application-level settings
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
-        default="INFO",
-        description="Logging level"
+        default="INFO", description="Logging level"
     )
-    cors_origins: str = Field(
-        default="*",
-        description="Allowed CORS origins (comma-separated)"
-    )
-    enable_metrics: bool = Field(
-        default=False,
-        description="Enable metrics collection"
-    )
+    cors_origins: str = Field(default="*", description="Allowed CORS origins (comma-separated)")
+    enable_metrics: bool = Field(default=False, description="Enable metrics collection")
 
     @property
     def cors_origins_list(self) -> list[str]:
@@ -234,11 +168,7 @@ class AppSettings(BaseSettings):
         db_dir.mkdir(parents=True, exist_ok=True)
 
     model_config = SettingsConfigDict(
-        env_prefix='APP_',
-        env_file_encoding='utf-8',
-        env_nested_delimiter='__',
-        case_sensitive=False,
-        extra='ignore'
+        env_prefix="APP_", env_file_encoding="utf-8", env_nested_delimiter="__", case_sensitive=False, extra="ignore"
     )
 
 
@@ -276,7 +206,7 @@ def get_settings() -> AppSettings:
     global _settings
     if _settings is None:
         # Load .env file if it exists (for local overrides)
-        env_file = Path('.env')
+        env_file = Path(".env")
 
         if env_file.exists():
             _settings = AppSettings(_env_file=env_file)
@@ -301,4 +231,3 @@ def reload_settings() -> AppSettings:
     global _settings
     _settings = None
     return get_settings()
-

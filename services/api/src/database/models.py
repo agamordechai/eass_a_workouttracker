@@ -3,14 +3,18 @@
 This module imports shared exercise models and defines API-specific models.
 The shared models ensure consistency across all microservices.
 """
-from pydantic import BaseModel, Field
+
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 # Import shared exercise models (single source of truth)
 from services.shared.models import (
     ExerciseBase as Exercise,
-    ExerciseResponse,
+)
+from services.shared.models import (
     ExerciseEditRequest,
+    ExerciseResponse,
     PaginatedExerciseResponse,
 )
 
@@ -33,6 +37,7 @@ class HealthResponse(BaseModel):
         timestamp: ISO 8601 timestamp of the health check.
         database: Database connectivity information.
     """
+
     status: str = Field(..., description="Health status: 'healthy' or 'unhealthy'")
     version: str = Field(..., description="API version")
     timestamp: str = Field(..., description="ISO 8601 timestamp")

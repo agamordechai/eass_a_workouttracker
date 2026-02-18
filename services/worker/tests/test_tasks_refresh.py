@@ -1,7 +1,8 @@
 """Tests for refresh task."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 @pytest.mark.anyio
@@ -60,8 +61,8 @@ async def test_refresh_exercises_with_failures():
 @pytest.mark.anyio
 async def test_refresh_exercises_config():
     """Test that refresh task uses correct configuration."""
-    from services.worker.src.tasks.refresh import refresh_exercises
     from dev.refresh import RefreshConfig
+    from services.worker.src.tasks.refresh import refresh_exercises
 
     with patch("services.worker.src.tasks.refresh.ExerciseRefresher") as MockRefresher:
         mock_refresher = MagicMock()

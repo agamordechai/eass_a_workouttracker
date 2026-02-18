@@ -4,8 +4,9 @@ This module provides a base client class with common functionality for
 making HTTP requests to other services in the workout tracker system.
 """
 
-import httpx
 import logging
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +21,7 @@ class BaseAPIClient:
     - Async context management
     """
 
-    def __init__(
-        self,
-        base_url: str,
-        timeout: float = 10.0,
-        headers: dict | None = None
-    ):
+    def __init__(self, base_url: str, timeout: float = 10.0, headers: dict | None = None):
         """Initialize the API client.
 
         Args:
@@ -45,11 +41,7 @@ class BaseAPIClient:
             Configured AsyncClient instance
         """
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                timeout=self.timeout,
-                headers=self.default_headers
-            )
+            self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout, headers=self.default_headers)
         return self._client
 
     async def close(self) -> None:

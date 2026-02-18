@@ -5,10 +5,11 @@ Usage:
     docker exec grindlogger-api python -m services.api.src.manage promote user@example.com --role readonly
     docker exec grindlogger-api python -m services.api.src.manage list-users
 """
+
 import argparse
 import sys
 
-from services.api.src.database.database import init_db, get_session
+from services.api.src.database.database import get_session, init_db
 from services.api.src.database.user_repository import UserRepository
 
 

@@ -4,7 +4,9 @@ This module defines the database tables using SQLModel ORM.
 Separate from Pydantic models to maintain clear separation between
 database layer and API layer.
 """
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
+
 from sqlmodel import Field, SQLModel
 
 
@@ -33,7 +35,7 @@ class UserTable(SQLModel, table=True):
     picture_url: str | None = Field(default=None, max_length=1024)
     role: str = Field(default="user", max_length=20)
     disabled: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ExerciseTable(SQLModel, table=True):
@@ -59,5 +61,5 @@ class ExerciseTable(SQLModel, table=True):
     sets: int = Field(ge=1, le=100)
     reps: int = Field(ge=1, le=1000)
     weight: float | None = Field(default=None, ge=0)
-    workout_day: str = Field(default='A', max_length=10)
+    workout_day: str = Field(default="A", max_length=10)
     user_id: int = Field(foreign_key="users.id", index=True)

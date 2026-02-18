@@ -5,9 +5,11 @@ enabling efficient caching via HTTP 304 Not Modified responses.
 
 Based on Session 12 requirements for tool-friendly APIs.
 """
+
 import hashlib
 import json
 from typing import Any
+
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
@@ -34,11 +36,7 @@ def compute_etag(body: dict[str, Any]) -> str:
     return f'W/"{digest}"'
 
 
-def maybe_return_not_modified(
-    request: Request,
-    response: Response,
-    payload: dict[str, Any]
-) -> Response:
+def maybe_return_not_modified(request: Request, response: Response, payload: dict[str, Any]) -> Response:
     """Check If-None-Match header and return 304 if ETag matches.
 
     This function implements HTTP conditional request handling:
@@ -76,7 +74,7 @@ def maybe_return_not_modified(
         not_modified = Response(status_code=304)
         not_modified.headers["ETag"] = etag
         # Optionally preserve other headers from original response
-        if hasattr(response, 'headers'):
+        if hasattr(response, "headers"):
             for key in ["X-Total-Count", "X-Request-Id", "X-Response-Time"]:
                 if key in response.headers:
                     not_modified.headers[key] = response.headers[key]

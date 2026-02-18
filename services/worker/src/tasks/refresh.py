@@ -5,12 +5,13 @@ from typing import Any
 
 try:
     import redis.asyncio as redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
     redis = None
 
-from dev.refresh import ExerciseRefresher, IdempotencyStore, RefreshConfig
+from dev.refresh import ExerciseRefresher, RefreshConfig
 
 from ..config import get_settings
 

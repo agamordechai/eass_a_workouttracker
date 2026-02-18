@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings
 
 class AISettings(BaseSettings):
     """AI model configuration."""
+
     model: str = Field(default="anthropic:claude-3-5-haiku-latest", description="AI model to use")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Model temperature")
     max_tokens: int = Field(default=1024, ge=1, description="Max tokens in response")
@@ -15,18 +16,21 @@ class AISettings(BaseSettings):
 
 class APIClientSettings(BaseSettings):
     """Workout API client configuration."""
+
     base_url: str = Field(default="http://api:8000", description="Workout API base URL")
     timeout: float = Field(default=10.0, description="Request timeout in seconds")
 
 
 class RedisSettings(BaseSettings):
     """Redis configuration for caching."""
+
     url: str = Field(default="redis://redis:6379/0", description="Redis connection URL")
     cache_ttl: int = Field(default=3600, description="Cache TTL in seconds")
 
 
 class ServiceSettings(BaseSettings):
     """Service configuration."""
+
     host: str = Field(default="0.0.0.0", description="Service host")
     port: int = Field(default=8001, description="Service port")
     debug: bool = Field(default=False, description="Debug mode")
@@ -51,9 +55,7 @@ class Settings(BaseSettings):
     cache_ttl: int = Field(default=3600, alias="CACHE_TTL")
 
     # JWT (shared with API for admin-check on per-user keys)
-    jwt_secret_key: str = Field(
-        default="dev-secret-key-change-in-production", alias="JWT_SECRET_KEY"
-    )
+    jwt_secret_key: str = Field(default="dev-secret-key-change-in-production", alias="JWT_SECRET_KEY")
 
     # Service
     host: str = Field(default="0.0.0.0", alias="SERVICE_HOST")

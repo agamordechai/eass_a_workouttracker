@@ -5,6 +5,7 @@ from typing import Any
 
 try:
     import redis.asyncio as redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -46,6 +47,7 @@ async def cleanup_stale_data(ctx: dict[str, Any]) -> dict[str, int]:
         return {"deleted_idempotency_keys": 0, "cleanup_time_ms": 0}
 
     import time
+
     start_time = time.time()
 
     deleted_count = 0
@@ -54,9 +56,7 @@ async def cleanup_stale_data(ctx: dict[str, Any]) -> dict[str, int]:
         # Scan for idempotency keys
         cursor = 0
         while True:
-            cursor, keys = await redis_client.scan(
-                cursor=cursor, match="idempotency:*", count=100
-            )
+            cursor, keys = await redis_client.scan(cursor=cursor, match="idempotency:*", count=100)
 
             for key in keys:
                 # Check if key has TTL (>0 means it will expire, -1 means no expiry, -2 means doesn't exist)
@@ -74,9 +74,7 @@ async def cleanup_stale_data(ctx: dict[str, Any]) -> dict[str, int]:
 
         cleanup_time_ms = int((time.time() - start_time) * 1000)
 
-        logger.info(
-            f"Cleanup complete: deleted {deleted_count} keys in {cleanup_time_ms}ms"
-        )
+        logger.info(f"Cleanup complete: deleted {deleted_count} keys in {cleanup_time_ms}ms")
 
         return {
             "deleted_idempotency_keys": deleted_count,

@@ -2,6 +2,7 @@
 
 These tests verify that all CLI commands work correctly using Typer's CliRunner.
 """
+
 import json
 import sys
 from pathlib import Path
@@ -14,7 +15,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from cli.workout_cli import app
-from services.api.src.database.database import init_db, get_session
+from services.api.src.database.database import get_session, init_db
 from services.api.src.database.sqlmodel_repository import ExerciseRepository
 
 runner = CliRunner()
@@ -136,12 +137,7 @@ def test_cli_export_filtered_by_day(tmp_path):
 
     # Export only day A exercises
     output_dir = tmp_path / "exports"
-    result = runner.invoke(app, [
-        "export",
-        "--format", "json",
-        "--day", "A",
-        "--output", str(output_dir)
-    ])
+    result = runner.invoke(app, ["export", "--format", "json", "--day", "A", "--output", str(output_dir)])
 
     assert result.exit_code == 0
     assert "Filtered to workout day: A" in result.stdout

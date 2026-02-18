@@ -1,12 +1,14 @@
 """Rate limiting module for Workout Tracker API."""
+
 import logging
+
+import jwt
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
-import jwt
 
+from services.api.src.auth import ALGORITHM, SECRET_KEY, Role
 from services.api.src.ratelimit.config import get_ratelimit_settings
-from services.api.src.auth import SECRET_KEY, ALGORITHM, Role
 
 logger = logging.getLogger(__name__)
 
@@ -122,9 +124,7 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSO
 
     # Log the rate limit violation
     key = get_rate_limit_key(request)
-    logger.warning(
-        f"Rate limit exceeded for {key} on {request.method} {request.url.path}"
-    )
+    logger.warning(f"Rate limit exceeded for {key} on {request.method} {request.url.path}")
 
     response = JSONResponse(
         status_code=429,

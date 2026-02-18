@@ -1,19 +1,21 @@
 """Tests for authentication and authorization (Google OAuth)."""
-import pytest
+
 from datetime import timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from services.api.src.api import app, limiter
 from services.api.src.auth import (
+    Role,
     create_access_token,
     create_refresh_token,
     decode_token,
     verify_google_token,
-    Role,
 )
 from services.api.src.database.db_models import UserTable
-from services.api.src.api import app, limiter
 
 # Disable rate limiter for tests (requires Redis which may not be available)
 limiter.enabled = False
@@ -111,6 +113,7 @@ class TestGoogleTokenVerification:
         mock_verify.side_effect = ValueError("Token is invalid")
 
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             verify_google_token("bad-token", "fake-client-id")
         assert exc_info.value.status_code == 401
@@ -171,28 +174,19 @@ def _create_admin_user(session: Session, user_id: int = 3) -> UserTable:
 @pytest.fixture
 def user_token():
     """Create a valid token for a regular user (id=2)."""
-    return create_access_token(
-        data={"sub": "2", "role": "user"},
-        expires_delta=timedelta(minutes=30)
-    )
+    return create_access_token(data={"sub": "2", "role": "user"}, expires_delta=timedelta(minutes=30))
 
 
 @pytest.fixture
 def admin_token():
     """Create a valid token for an admin user (id=3)."""
-    return create_access_token(
-        data={"sub": "3", "role": "admin"},
-        expires_delta=timedelta(minutes=30)
-    )
+    return create_access_token(data={"sub": "3", "role": "admin"}, expires_delta=timedelta(minutes=30))
 
 
 @pytest.fixture
 def expired_token():
     """Create an expired token."""
-    return create_access_token(
-        data={"sub": "2", "role": "user"},
-        expires_delta=timedelta(seconds=-1)
-    )
+    return create_access_token(data={"sub": "2", "role": "user"}, expires_delta=timedelta(seconds=-1))
 
 
 class TestProtectedEndpoints:
@@ -207,20 +201,14 @@ class TestProtectedEndpoints:
 
     def test_auth_me_with_expired_token_returns_401(self, client, expired_token):
         """Test that /auth/me returns 401 when token is expired."""
-        response = client.get(
-            "/auth/me",
-            headers={"Authorization": f"Bearer {expired_token}"}
-        )
+        response = client.get("/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
 
         assert response.status_code == 401
         assert "Could not validate credentials" in response.json()["detail"]
 
     def test_auth_me_with_invalid_token_returns_401(self, client):
         """Test that /auth/me returns 401 when token is invalid."""
-        response = client.get(
-            "/auth/me",
-            headers={"Authorization": "Bearer invalid.token.here"}
-        )
+        response = client.get("/auth/me", headers={"Authorization": "Bearer invalid.token.here"})
 
         assert response.status_code == 401
         assert "Could not validate credentials" in response.json()["detail"]

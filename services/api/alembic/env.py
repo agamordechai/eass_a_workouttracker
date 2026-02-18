@@ -1,11 +1,9 @@
 import sys
-from pathlib import Path
 from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from pathlib import Path
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 # this is the Alembic Config object, which provides
@@ -24,6 +22,7 @@ if str(project_root) not in sys.path:
 
 # Get database URL from application settings
 from services.api.src.database.config import get_settings
+
 settings = get_settings()
 
 # Set the database URL for Alembic
@@ -85,9 +84,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

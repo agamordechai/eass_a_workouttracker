@@ -1,13 +1,14 @@
 """Tests for cleanup task."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 
 @pytest.mark.anyio
 async def test_cleanup_stale_data_success():
     """Test successful cleanup."""
-    from services.worker.src.tasks.cleanup import cleanup_stale_data, REDIS_AVAILABLE
+    from services.worker.src.tasks.cleanup import REDIS_AVAILABLE, cleanup_stale_data
 
     if not REDIS_AVAILABLE:
         pytest.skip("Redis not available")
@@ -15,12 +16,14 @@ async def test_cleanup_stale_data_success():
     # Mock Redis client
     mock_redis = MagicMock()
     mock_redis.ping = AsyncMock()
-    mock_redis.scan = AsyncMock(side_effect=[
-        # First scan returns some keys
-        (10, ["idempotency:refresh:1:2026-01-01", "idempotency:refresh:2:2026-01-01"]),
-        # Second scan returns no more keys
-        (0, []),
-    ])
+    mock_redis.scan = AsyncMock(
+        side_effect=[
+            # First scan returns some keys
+            (10, ["idempotency:refresh:1:2026-01-01", "idempotency:refresh:2:2026-01-01"]),
+            # Second scan returns no more keys
+            (0, []),
+        ]
+    )
     mock_redis.ttl = AsyncMock(return_value=-1)  # No TTL (should be deleted)
     mock_redis.delete = AsyncMock()
     mock_redis.aclose = AsyncMock()
@@ -35,17 +38,19 @@ async def test_cleanup_stale_data_success():
 @pytest.mark.anyio
 async def test_cleanup_stale_data_no_deletions():
     """Test cleanup when all keys have valid TTL."""
-    from services.worker.src.tasks.cleanup import cleanup_stale_data, REDIS_AVAILABLE
+    from services.worker.src.tasks.cleanup import REDIS_AVAILABLE, cleanup_stale_data
 
     if not REDIS_AVAILABLE:
         pytest.skip("Redis not available")
 
     mock_redis = MagicMock()
     mock_redis.ping = AsyncMock()
-    mock_redis.scan = AsyncMock(side_effect=[
-        (10, ["idempotency:refresh:1:2026-01-01"]),
-        (0, []),
-    ])
+    mock_redis.scan = AsyncMock(
+        side_effect=[
+            (10, ["idempotency:refresh:1:2026-01-01"]),
+            (0, []),
+        ]
+    )
     mock_redis.ttl = AsyncMock(return_value=3600)  # Valid TTL (should not be deleted)
     mock_redis.delete = AsyncMock()
     mock_redis.aclose = AsyncMock()
@@ -60,7 +65,7 @@ async def test_cleanup_stale_data_no_deletions():
 @pytest.mark.anyio
 async def test_cleanup_stale_data_redis_error():
     """Test cleanup handles Redis errors gracefully."""
-    from services.worker.src.tasks.cleanup import cleanup_stale_data, REDIS_AVAILABLE
+    from services.worker.src.tasks.cleanup import REDIS_AVAILABLE, cleanup_stale_data
 
     if not REDIS_AVAILABLE:
         pytest.skip("Redis not available")

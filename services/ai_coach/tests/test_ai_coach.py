@@ -1,11 +1,10 @@
 """Tests for the AI Coach API endpoints."""
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 # Import models directly without triggering pydantic-ai imports
-import sys
-from pydantic import BaseModel, Field
 from enum import Enum
+
+import pytest
+from pydantic import BaseModel, Field
 
 
 # Define test-only models that mirror the real ones
@@ -78,7 +77,7 @@ def sample_workout_context(sample_exercises):
         exercises=sample_exercises,
         total_volume=6560.0,
         exercise_count=3,
-        muscle_groups_worked=["chest", "legs", "back"]
+        muscle_groups_worked=["chest", "legs", "back"],
     )
 
 
@@ -95,18 +94,13 @@ def sample_recommendation():
                 reps="8-10",
                 weight_suggestion="Start with 60kg",
                 notes="Keep shoulders back",
-                muscle_group=MuscleGroup.CHEST
+                muscle_group=MuscleGroup.CHEST,
             ),
-            ExerciseRecommendation(
-                name="Overhead Press",
-                sets=3,
-                reps="10-12",
-                muscle_group=MuscleGroup.SHOULDERS
-            ),
+            ExerciseRecommendation(name="Overhead Press", sets=3, reps="10-12", muscle_group=MuscleGroup.SHOULDERS),
         ],
         estimated_duration_minutes=45,
         difficulty="Intermediate",
-        tips=["Warm up properly", "Stay hydrated"]
+        tips=["Warm up properly", "Stay hydrated"],
     )
 
 
@@ -118,7 +112,7 @@ def sample_analysis():
         strengths=["Good volume", "Compound movements"],
         areas_to_improve=["Add more back work"],
         recommendations=["Include deadlifts"],
-        muscle_balance_score=75.0
+        muscle_balance_score=75.0,
     )
 
 
@@ -127,33 +121,19 @@ class TestModels:
 
     def test_exercise_from_api_with_weight(self):
         """Test ExerciseFromAPI model with weight."""
-        exercise = ExerciseFromAPI(
-            id=1,
-            name="Bench Press",
-            sets=4,
-            reps=8,
-            weight=80.0
-        )
+        exercise = ExerciseFromAPI(id=1, name="Bench Press", sets=4, reps=8, weight=80.0)
         assert exercise.name == "Bench Press"
         assert exercise.weight == 80.0
 
     def test_exercise_from_api_bodyweight(self):
         """Test ExerciseFromAPI model without weight."""
-        exercise = ExerciseFromAPI(
-            id=2,
-            name="Pull-ups",
-            sets=3,
-            reps=10
-        )
+        exercise = ExerciseFromAPI(id=2, name="Pull-ups", sets=3, reps=10)
         assert exercise.weight is None
 
     def test_workout_context(self, sample_exercises):
         """Test WorkoutContext model."""
         context = WorkoutContext(
-            exercises=sample_exercises,
-            total_volume=1000.0,
-            exercise_count=3,
-            muscle_groups_worked=["chest", "back"]
+            exercises=sample_exercises, total_volume=1000.0, exercise_count=3, muscle_groups_worked=["chest", "back"]
         )
         assert context.exercise_count == 3
         assert len(context.muscle_groups_worked) == 2
@@ -167,11 +147,7 @@ class TestModels:
     def test_exercise_recommendation(self):
         """Test ExerciseRecommendation model."""
         rec = ExerciseRecommendation(
-            name="Squat",
-            sets=4,
-            reps="8-10",
-            muscle_group=MuscleGroup.LEGS,
-            notes="Keep core tight"
+            name="Squat", sets=4, reps="8-10", muscle_group=MuscleGroup.LEGS, notes="Keep core tight"
         )
         assert rec.sets == 4
         assert rec.muscle_group == MuscleGroup.LEGS
@@ -231,7 +207,7 @@ class TestFallbackRecommendations:
         tips = [
             "Warm up for 5-10 minutes before starting",
             "Rest 60-90 seconds between sets",
-            "Focus on proper form over heavy weight"
+            "Focus on proper form over heavy weight",
         ]
         assert len(tips) > 0
         assert any("warm" in tip.lower() for tip in tips)
@@ -240,5 +216,3 @@ class TestFallbackRecommendations:
         """Test that fallback covers multiple muscle groups."""
         muscle_groups = {"legs", "chest", "back", "shoulders"}
         assert len(muscle_groups) >= 3
-
-
