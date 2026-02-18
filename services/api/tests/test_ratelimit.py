@@ -412,4 +412,3 @@ class TestRateLimitErrorFormat:
                 break
 
         assert hit_429, "Expected to hit 429 rate limit after 150 requests (limit=120/min)"
-
