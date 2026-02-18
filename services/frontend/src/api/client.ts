@@ -202,10 +202,18 @@ export async function deleteExercise(exerciseId: number): Promise<void> {
 }
 
 /**
+ * Delete all exercises for the current user.
+ */
+export async function clearExercises(): Promise<{ deleted: number }> {
+  const response = await client.delete<{ deleted: number }>('/exercises');
+  return response.data;
+}
+
+/**
  * Seed default sample exercises for the current user.
  */
-export async function seedExercises(): Promise<{ seeded: number }> {
-  const response = await client.post<{ seeded: number }>('/exercises/seed');
+export async function seedExercises(split: 'ppl' | 'ab' | 'fullbody' = 'ppl'): Promise<{ seeded: number }> {
+  const response = await client.post<{ seeded: number }>(`/exercises/seed?split=${split}`);
   return response.data;
 }
 

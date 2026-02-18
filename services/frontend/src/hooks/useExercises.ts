@@ -58,8 +58,8 @@ export function useExercises() {
     }
   };
 
-  const handleSeed = async () => {
-    await seedExercises();
+  const handleSeed = async (split: 'ppl' | 'ab' | 'fullbody') => {
+    await seedExercises(split);
     await fetchExercises();
   };
 

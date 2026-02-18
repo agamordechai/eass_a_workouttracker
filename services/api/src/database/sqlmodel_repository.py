@@ -206,16 +206,34 @@ class ExerciseRepository:
         self.session.commit()
         return True
 
-    def seed_initial_data(self, user_id: int) -> int:
+    def delete_all(self, user_id: int) -> int:
+        """Delete all exercises owned by a user.
+
+        Args:
+            user_id: Owner's user ID
+
+        Returns:
+            Number of exercises deleted
+        """
+        statement = select(ExerciseTable).where(ExerciseTable.user_id == user_id)
+        exercises = self.session.exec(statement).all()
+        count = len(exercises)
+        for exercise in exercises:
+            self.session.delete(exercise)
+        self.session.commit()
+        return count
+
+    def seed_initial_data(self, user_id: int, split: str = 'ppl') -> int:
         """Seed database with initial workout data for a specific user.
 
         Only seeds if the user has no exercises yet.
 
         Args:
             user_id: User to seed data for
+            split: Workout split type — 'ppl', 'ab', or 'fullbody'
 
         Returns:
-            Number of exercises seeded
+            Number of exercises seeded (0 if user already has exercises)
         """
         # Check if user already has exercises
         statement = select(ExerciseTable).where(ExerciseTable.user_id == user_id)
@@ -223,35 +241,73 @@ class ExerciseRepository:
         if existing:
             return 0
 
-        seed_exercises = [
-            ExerciseTable(name='Bench Press', sets=3, reps=10, weight=100.0, workout_day='A', user_id=user_id),
-            ExerciseTable(name='Shoulder Press', sets=3, reps=10, weight=22.5, workout_day='A', user_id=user_id),
-            ExerciseTable(name='Tricep Extension', sets=3, reps=10, weight=42.5, workout_day='A', user_id=user_id),
-            ExerciseTable(name='Pull ups', sets=5, reps=8, weight=None, workout_day='B', user_id=user_id),
-            ExerciseTable(name='Squats', sets=3, reps=8, weight=95.0, workout_day='C', user_id=user_id),
-            ExerciseTable(name='Hip Thrust', sets=3, reps=10, weight=100.0, workout_day='C', user_id=user_id),
-            ExerciseTable(name='Bulgarian Split Squat', sets=3, reps=8, weight=27.5, workout_day='C', user_id=user_id),
-            ExerciseTable(name='Hip Adduction', sets=3, reps=16, weight=90.0, workout_day='C', user_id=user_id),
-            ExerciseTable(name='Hip Abduction', sets=3, reps=16, weight=90.0, workout_day='C', user_id=user_id),
-            ExerciseTable(name='Incline Bench Press', sets=3, reps=10, weight=37.5, workout_day='A', user_id=user_id),
-            ExerciseTable(name='Chest Fly', sets=3, reps=10, weight=20.0, workout_day='A', user_id=user_id),
-            ExerciseTable(name='Upper Chest Fly', sets=3, reps=10, weight=20.0, workout_day='A', user_id=user_id),
-            ExerciseTable(name='Shoulder Extension', sets=5, reps=8, weight=12.5, workout_day='A', user_id=user_id),
-            ExerciseTable(name='Overhead Tricep Extension', sets=3, reps=8, weight=17.5, workout_day='A', user_id=user_id),
-            ExerciseTable(name='Cable Row', sets=3, reps=12, weight=80.0, workout_day='B', user_id=user_id),
-            ExerciseTable(name='Pull Over', sets=3, reps=10, weight=45.0, workout_day='B', user_id=user_id),
-            ExerciseTable(name='Dumbbell Shrugs', sets=3, reps=12, weight=35.0, workout_day='B', user_id=user_id),
-            ExerciseTable(name='Rear Delt', sets=3, reps=10, weight=10.0, workout_day='B', user_id=user_id),
-            ExerciseTable(name='Bicep Curl', sets=3, reps=10, weight=35.0, workout_day='B', user_id=user_id),
-            ExerciseTable(name='Bicep Hammer Curls', sets=3, reps=8, weight=25.0, workout_day='B', user_id=user_id),
-            ExerciseTable(name='Knee Extension', sets=3, reps=10, weight=164.0, workout_day='C', user_id=user_id),
-            ExerciseTable(name='Knee Flexion', sets=3, reps=10, weight=90.0, workout_day='C', user_id=user_id),
+        daily = [
             ExerciseTable(name='Crunches', sets=1, reps=30, weight=None, workout_day='None', user_id=user_id),
             ExerciseTable(name='Penguins', sets=1, reps=25, weight=None, workout_day='None', user_id=user_id),
             ExerciseTable(name='Leg drops', sets=1, reps=25, weight=None, workout_day='None', user_id=user_id),
             ExerciseTable(name='Plank', sets=1, reps=90, weight=None, workout_day='None', user_id=user_id),
             ExerciseTable(name='Running', sets=1, reps=30, weight=None, workout_day='None', user_id=user_id),
         ]
+
+        if split == 'fullbody':
+            split_exercises = [
+                ExerciseTable(name='Squats', sets=3, reps=8, weight=80.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Bench Press', sets=3, reps=8, weight=80.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Bent Over Row', sets=3, reps=8, weight=70.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Overhead Press', sets=3, reps=8, weight=50.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Romanian Deadlift', sets=3, reps=10, weight=80.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Pull ups', sets=3, reps=8, weight=None, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Bicep Curl', sets=3, reps=12, weight=20.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Tricep Pushdown', sets=3, reps=12, weight=25.0, workout_day='A', user_id=user_id),
+            ]
+        elif split == 'ab':
+            split_exercises = [
+                # Day A — Upper
+                ExerciseTable(name='Bench Press', sets=3, reps=8, weight=80.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Incline Dumbbell Press', sets=3, reps=10, weight=25.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Cable Row', sets=3, reps=10, weight=70.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Pull ups', sets=3, reps=8, weight=None, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Shoulder Press', sets=3, reps=10, weight=40.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Bicep Curl', sets=3, reps=12, weight=20.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Tricep Extension', sets=3, reps=12, weight=25.0, workout_day='A', user_id=user_id),
+                # Day B — Lower
+                ExerciseTable(name='Squats', sets=4, reps=6, weight=100.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Romanian Deadlift', sets=3, reps=8, weight=90.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Leg Press', sets=3, reps=12, weight=150.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Hip Thrust', sets=3, reps=10, weight=90.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Leg Curl', sets=3, reps=12, weight=70.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Calf Raises', sets=4, reps=15, weight=60.0, workout_day='B', user_id=user_id),
+            ]
+        else:  # ppl
+            split_exercises = [
+                # Day A — Push
+                ExerciseTable(name='Bench Press', sets=3, reps=10, weight=100.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Shoulder Press', sets=3, reps=10, weight=22.5, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Tricep Extension', sets=3, reps=10, weight=42.5, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Incline Bench Press', sets=3, reps=10, weight=37.5, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Chest Fly', sets=3, reps=10, weight=20.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Upper Chest Fly', sets=3, reps=10, weight=20.0, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Shoulder Extension', sets=5, reps=8, weight=12.5, workout_day='A', user_id=user_id),
+                ExerciseTable(name='Overhead Tricep Extension', sets=3, reps=8, weight=17.5, workout_day='A', user_id=user_id),
+                # Day B — Pull
+                ExerciseTable(name='Pull ups', sets=5, reps=8, weight=None, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Cable Row', sets=3, reps=12, weight=80.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Pull Over', sets=3, reps=10, weight=45.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Dumbbell Shrugs', sets=3, reps=12, weight=35.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Rear Delt', sets=3, reps=10, weight=10.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Bicep Curl', sets=3, reps=10, weight=35.0, workout_day='B', user_id=user_id),
+                ExerciseTable(name='Bicep Hammer Curls', sets=3, reps=8, weight=25.0, workout_day='B', user_id=user_id),
+                # Day C — Legs
+                ExerciseTable(name='Squats', sets=3, reps=8, weight=95.0, workout_day='C', user_id=user_id),
+                ExerciseTable(name='Hip Thrust', sets=3, reps=10, weight=100.0, workout_day='C', user_id=user_id),
+                ExerciseTable(name='Bulgarian Split Squat', sets=3, reps=8, weight=27.5, workout_day='C', user_id=user_id),
+                ExerciseTable(name='Hip Adduction', sets=3, reps=16, weight=90.0, workout_day='C', user_id=user_id),
+                ExerciseTable(name='Hip Abduction', sets=3, reps=16, weight=90.0, workout_day='C', user_id=user_id),
+                ExerciseTable(name='Knee Extension', sets=3, reps=10, weight=164.0, workout_day='C', user_id=user_id),
+                ExerciseTable(name='Knee Flexion', sets=3, reps=10, weight=90.0, workout_day='C', user_id=user_id),
+            ]
+
+        seed_exercises = split_exercises + daily
 
         for exercise in seed_exercises:
             self.session.add(exercise)

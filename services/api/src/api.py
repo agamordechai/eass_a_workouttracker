@@ -400,21 +400,43 @@ def delete_exercise_endpoint(
     return None
 
 
+@app.delete('/exercises', status_code=200, tags=["Exercises"])
+@limiter.limit("5/minute")
+def clear_exercises(
+    request: Request,
+    repository: RepositoryDep,
+    current_user: Annotated[UserTable, Depends(get_current_user)],
+) -> dict:
+    """Delete all exercises for the current user.
+
+    Returns:
+        Count of exercises deleted.
+    """
+    count = repository.delete_all(current_user.id)
+    return {"deleted": count}
+
+
 @app.post('/exercises/seed', status_code=200, tags=["Exercises"])
 @limiter.limit("5/minute")
 def seed_exercises(
     request: Request,
     repository: RepositoryDep,
     current_user: Annotated[UserTable, Depends(get_current_user)],
+    split: str = 'ppl',
 ) -> dict:
     """Seed default sample exercises for the current user.
 
     Only seeds if the user has no exercises yet.
 
+    Args:
+        split: Workout split type — 'ppl' (Push/Pull/Legs), 'ab' (Upper/Lower), or 'fullbody'.
+
     Returns:
         Count of exercises seeded.
     """
-    count = repository.seed_initial_data(current_user.id)
+    if split not in ('ppl', 'ab', 'fullbody'):
+        split = 'ppl'
+    count = repository.seed_initial_data(current_user.id, split=split)
     return {"seeded": count}
 
 
@@ -679,6 +701,7 @@ async def update_me(
 async def delete_me(
     request: Request,
     current_user: Annotated[UserTable, Depends(get_current_user)],
+    repository: RepositoryDep,
     session: Session = Depends(get_session),
 ) -> None:
     """Permanently delete current authenticated user's account.
@@ -687,8 +710,10 @@ async def delete_me(
 
     Args:
         current_user: Current user from JWT token.
+        repository: Exercise repository for deleting user exercises.
         session: Database session.
     """
+    repository.delete_all(current_user.id)
     session.delete(current_user)
     session.commit()
 
