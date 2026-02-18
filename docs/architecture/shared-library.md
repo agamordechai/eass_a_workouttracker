@@ -61,18 +61,6 @@ Common configuration utilities:
 - **LogLevel**: Enum for consistent log levels
 - **build_redis_url()**: Helper to construct Redis connection URLs
 
-## Migration Notes
-
-Previously, each service had its own copies of:
-- Exercise models (API had `Exercise`, AI Coach had `ExerciseFromAPI`)
-- HTTP client patterns (duplicated across Worker and AI Coach)
-- Configuration helpers
-
-These have been unified into the shared library to:
-1. Reduce code duplication
-2. Ensure consistency
-3. Simplify updates (change once, apply everywhere)
-
 ## Usage Guidelines
 
 1. **Always import from shared when available**: Don't recreate models that exist in shared

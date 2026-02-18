@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes how services in the Workout Tracker communicate with each other.
+This document describes how GrindLogger services communicate with each other.
 
 ## Architecture
 
