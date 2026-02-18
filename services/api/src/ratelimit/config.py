@@ -5,6 +5,8 @@ from pydantic_settings import BaseSettings
 class RateLimitSettings(BaseSettings):
     """Rate limit configuration."""
 
+    model_config = {"env_prefix": "RATELIMIT_"}
+
     enabled: bool = Field(default=True)
     redis_url: str = Field(default="redis://redis:6379/2")
 
@@ -18,9 +20,6 @@ class RateLimitSettings(BaseSettings):
     write_limit_user: str = Field(default="60/minute")
     write_limit_admin: str = Field(default="150/minute")
     admin_limit: str = Field(default="100/minute")
-
-    class Config:
-        env_prefix = "RATELIMIT_"
 
 
 _settings = None

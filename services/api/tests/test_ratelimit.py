@@ -23,17 +23,19 @@ from services.api.src.auth import create_access_token
 from services.api.src.database.database import engine
 from services.api.src.database.db_models import UserTable
 
+# Redis URL used by the test suite (localhost for CI / local dev)
+_REDIS_TEST_URL = "redis://localhost:6379/2"
+
 # Try to connect to Redis to check if it's available
 try:
-    import redis
+    import redis as _redis_mod
 
-    r = redis.from_url("redis://localhost:6379/2", socket_connect_timeout=1)
-    r.ping()
+    _redis_conn = _redis_mod.from_url(_REDIS_TEST_URL, socket_connect_timeout=1)
+    _redis_conn.ping()
     REDIS_AVAILABLE = True
-    # Re-enable limiter for these tests since we need it
-    limiter.enabled = True
 except Exception:
     REDIS_AVAILABLE = False
+    _redis_conn = None  # type: ignore[assignment]
 
 # Skip ALL tests in this file if Redis is not available
 # Also mark as 'redis' so they can be deselected with -m "not redis"
@@ -44,6 +46,52 @@ pytestmark = [
         reason="Redis required for rate limiting tests. Start Redis: docker run -d -p 6379:6379 redis:7-alpine",
     ),
 ]
+
+
+@pytest.fixture(autouse=True)
+def _enable_limiter_and_flush_redis():
+    """Enable the rate limiter and flush Redis before each test.
+
+    Other test modules (test_api, test_schemathesis, …) disable the shared
+    ``limiter`` singleton at module level.  Because pytest collects every module
+    before running any test, the final module-level assignment wins – and that
+    is typically ``limiter.enabled = False``.
+
+    This *autouse* fixture guarantees the limiter is enabled (and talking to
+    the correct Redis instance) for every test in this file, regardless of
+    collection order.  It also flushes the Redis DB so each test starts with
+    a clean rate-limit slate, then restores the previous ``enabled`` state
+    after the test.
+    """
+    from limits.storage import storage_from_string
+    from limits.strategies import FixedWindowRateLimiter
+
+    previous_enabled = limiter.enabled
+    previous_storage = limiter._storage
+    previous_limiter = limiter._limiter
+    previous_uri = limiter._storage_uri
+    previous_dead = limiter._storage_dead
+
+    # Re-create the storage backend so it points at the test Redis
+    new_storage = storage_from_string(_REDIS_TEST_URL)
+    limiter._storage = new_storage
+    limiter._limiter = FixedWindowRateLimiter(new_storage)
+    limiter._storage_uri = _REDIS_TEST_URL
+    limiter._storage_dead = False
+    limiter.enabled = True
+
+    # Flush all keys in the rate-limit Redis DB so counters start at zero
+    if _redis_conn is not None:
+        _redis_conn.flushdb()
+
+    yield
+
+    # Restore previous state so we don't affect other test files
+    limiter.enabled = previous_enabled
+    limiter._storage = previous_storage
+    limiter._limiter = previous_limiter
+    limiter._storage_uri = previous_uri
+    limiter._storage_dead = previous_dead
 
 
 def _ensure_user(session: Session, user_id: int, role: str = "user") -> None:
@@ -143,9 +191,9 @@ class TestRateLimitExceeded:
         endpoint = "/exercises"
         headers = get_auth_header(_USER_ID, "user")
 
-        # Make many requests quickly
+        # Make many requests quickly — well over the 120/min limit
         responses = []
-        for _ in range(130):
+        for _ in range(150):
             response = client.get(endpoint, headers=headers)
             responses.append(response)
             if response.status_code == 429:
@@ -247,14 +295,14 @@ class TestIPBasedLimiting:
     """Test IP-based rate limiting for anonymous users."""
 
     def test_anonymous_requests_limited_by_ip(self):
-        """Verify authenticated requests are rate limited."""
-        headers = get_auth_header(_USER_ID, "user")
+        """Verify authenticated requests are rate limited at 120/minute."""
+        headers = get_auth_header(_USER2_ID, "user")
         # Make multiple authenticated requests
         successful = make_requests_until_limited("/exercises", headers=headers, limit=120)
 
         # Should allow approximately 120 requests (authenticated read limit)
         # Allow some margin for timing
-        assert 110 <= successful <= 125
+        assert 115 <= successful <= 125
 
 
 class TestUserBasedLimiting:
@@ -335,10 +383,12 @@ class TestRateLimitErrorFormat:
     def test_429_response_format(self):
         """Verify 429 response has correct JSON format."""
         headers = get_auth_header(_USER_ID, "user")
-        # Make requests until rate limited
-        for _ in range(130):
+        # Make requests until rate limited (limit is 120/min)
+        hit_429 = False
+        for _ in range(150):
             response = client.get("/exercises", headers=headers)
             if response.status_code == 429:
+                hit_429 = True
                 data = response.json()
 
                 # Verify required fields
@@ -360,3 +410,5 @@ class TestRateLimitErrorFormat:
                 assert "Retry-After" in response.headers
 
                 break
+
+        assert hit_429, "Expected to hit 429 rate limit after 150 requests (limit=120/min)"
