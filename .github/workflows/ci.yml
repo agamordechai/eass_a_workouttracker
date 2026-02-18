@@ -254,5 +254,5 @@ jobs:
             echo "::error::One or more CI jobs failed"
             exit 1
           fi
-          echo "✅ All CI checks passed!"
+          echo "All CI checks passed!"
 
