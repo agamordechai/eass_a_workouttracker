@@ -17,7 +17,7 @@ def get_api_client() -> httpx.AsyncClient:
         _api_client = httpx.AsyncClient(
             base_url=settings.api_client__workout_api_url,
             timeout=settings.api_client__timeout,
-            headers={"User-Agent": "workout-tracker-worker"},
+            headers={"User-Agent": "grindlogger-worker"},
         )
     return _api_client
 
@@ -30,7 +30,7 @@ def get_ai_coach_client() -> httpx.AsyncClient:
         _ai_coach_client = httpx.AsyncClient(
             base_url=settings.api_client__ai_coach_url,
             timeout=settings.api_client__timeout,
-            headers={"User-Agent": "workout-tracker-worker"},
+            headers={"User-Agent": "grindlogger-worker"},
         )
     return _ai_coach_client
 

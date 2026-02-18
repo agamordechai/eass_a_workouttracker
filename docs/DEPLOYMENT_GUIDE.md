@@ -48,7 +48,7 @@ cat ~/.ssh/aws-grindlogger.pub | pbcopy   # macOS — copies public key to clipb
 ## Step 4: SSH into the Server
 
 ```bash
-ssh -i ~/.ssh/aws-grindlogger ubuntu@<YOUR-PUBLIC-IP>
+ssh -i ~/.ssh/aws-vm ubuntu@<YOUR-PUBLIC-IP>
 ```
 
 ---
@@ -82,8 +82,8 @@ newgrp docker
 ## Step 7: Clone and Configure
 
 ```bash
-git clone https://github.com/<your-username>/grindlogger.git
-cd grindlogger
+git clone https://github.com/<your-username>/GrindLogger.git
+cd GrindLogger
 
 cp .env.example .env
 nano .env
@@ -174,8 +174,8 @@ nano nginx/certs/key.pem    # paste Private Key
 ### 10f: Copy Certs to the Server
 
 ```bash
-scp -i ~/.ssh/aws-grindlogger nginx/certs/cert.pem nginx/certs/key.pem \
-  ubuntu@<YOUR-EC2-IP>:~/grindlogger/nginx/certs/
+scp -i ~/.ssh/aws-vm nginx/certs/cert.pem nginx/certs/key.pem \
+  ubuntu@<YOUR-EC2-IP>:~/GrindLogger/nginx/certs/
 ```
 
 ### 10g: Open Port 443
@@ -186,7 +186,7 @@ In AWS → **EC2** → your instance → **Security** tab → **Security group**
 
 ```bash
 # On the server
-cd ~/grindlogger
+cd ~/GrindLogger
 echo "DOMAIN_NAME=yourdomain.com" >> .env
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build

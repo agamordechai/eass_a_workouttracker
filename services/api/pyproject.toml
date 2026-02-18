@@ -1,7 +1,7 @@
 [project]
-name = "workout-tracker-api"
+name = "grindlogger-api"
 version = "0.1.0"
-description = "Workout Tracker API Service"
+description = "GrindLogger API Service"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",

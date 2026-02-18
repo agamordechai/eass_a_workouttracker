@@ -64,7 +64,7 @@ services:
     build:
       context: ./nginx
       dockerfile: Dockerfile
-    container_name: workout-tracker-nginx-proxy
+    container_name: grindlogger-nginx-proxy
     ports:
       - "80:80"
       - "443:443"
@@ -74,4 +74,4 @@ services:
       - frontend
     restart: unless-stopped
     networks:
-      - workout-net
+      - grindlogger-net

@@ -1,7 +1,7 @@
 [project]
-name = "workout-tracker-worker"
+name = "grindlogger-worker"
 version = "0.1.0"
-description = "Background worker service for workout tracker"
+description = "Background worker service for GrindLogger"
 requires-python = ">=3.12"
 
 dependencies = [

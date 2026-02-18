@@ -165,7 +165,7 @@ docker compose logs -f worker
 ### Check Redis Queue
 ```bash
 # Connect to Redis DB 1
-docker exec workout-tracker-redis redis-cli -n 1
+docker exec grindlogger-redis redis-cli -n 1
 
 # List queue keys
 KEYS "arq:*"
@@ -210,7 +210,7 @@ The refresh logic from `scripts/refresh.py` is now integrated into the worker se
 ### Jobs Not Running
 1. Check cron configuration in logs
 2. Verify schedule settings are enabled
-3. Check Redis queue: `docker exec workout-tracker-redis redis-cli -n 1 LLEN arq:queue`
+3. Check Redis queue: `docker exec grindlogger-redis redis-cli -n 1 LLEN arq:queue`
 
 ### Health Check Failing
 1. Check Redis connectivity

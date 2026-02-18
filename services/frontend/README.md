@@ -48,7 +48,7 @@ The development server runs on `http://localhost:3000` and proxies API requests 
 ### Building the Image
 
 ```bash
-docker build -t workout-tracker-frontend .
+docker build -t grindlogger-frontend .
 ```
 
 ### Running with Docker Compose

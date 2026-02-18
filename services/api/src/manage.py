@@ -1,9 +1,9 @@
 """Lightweight management commands for use inside Docker containers.
 
 Usage:
-    docker exec workout-tracker-api python -m services.api.src.manage promote user@example.com
-    docker exec workout-tracker-api python -m services.api.src.manage promote user@example.com --role readonly
-    docker exec workout-tracker-api python -m services.api.src.manage list-users
+    docker exec grindlogger-api python -m services.api.src.manage promote user@example.com
+    docker exec grindlogger-api python -m services.api.src.manage promote user@example.com --role readonly
+    docker exec grindlogger-api python -m services.api.src.manage list-users
 """
 import argparse
 import sys
