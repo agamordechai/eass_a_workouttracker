@@ -124,7 +124,3 @@ The AI Coach runs as a separate service and talks to the main API to fetch worko
 | `POST` | `/chat` | Free-form chat with context awareness |
 | `POST` | `/recommend` | Generate a multi-day routine split |
 | `GET` | `/analyze` | Analyze current routine and score muscle balance |
-
-## License
-
-MIT

@@ -2,7 +2,7 @@ services:
   # PostgreSQL Database Service
   db:
     image: postgres:15-alpine
-    container_name: workout-tracker-db
+    container_name: grindlogger-db
     environment:
       - POSTGRES_USER=workout
       - POSTGRES_PASSWORD=workout123
@@ -16,12 +16,12 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - workout-net
+      - grindlogger-net
 
   # Redis for caching and session management
   redis:
     image: redis:7-alpine
-    container_name: workout-tracker-redis
+    container_name: grindlogger-redis
     ports:
       - "6379:6379"
     volumes:
@@ -33,13 +33,13 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - workout-net
+      - grindlogger-net
 
   api:
     build:
       context: .
       dockerfile: services/api/Dockerfile
-    container_name: workout-tracker-api
+    container_name: grindlogger-api
     ports:
       - "8000:8000"
     volumes:
@@ -96,14 +96,14 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - workout-net
+      - grindlogger-net
 
   # AI Workout Coach Service
   ai-coach:
     build:
       context: .
       dockerfile: services/ai_coach/Dockerfile
-    container_name: workout-tracker-ai-coach
+    container_name: grindlogger-ai-coach
     ports:
       - "8001:8001"
     environment:
@@ -139,14 +139,14 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - workout-net
+      - grindlogger-net
 
   # Background Worker Service
   worker:
     build:
       context: .
       dockerfile: services/worker/Dockerfile
-    container_name: workout-tracker-worker
+    container_name: grindlogger-worker
     environment:
       - WORKER_LOG_LEVEL=INFO
       - WORKER_REDIS__HOST=redis
@@ -179,7 +179,7 @@ services:
       retries: 3
       start_period: 20s
     networks:
-      - workout-net
+      - grindlogger-net
     ports:
       - "8002:8002"
 
@@ -189,7 +189,7 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-    container_name: workout-tracker-frontend
+    container_name: grindlogger-frontend
     ports:
       - "3000:80"
     depends_on:
@@ -197,7 +197,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - workout-net
+      - grindlogger-net
 
 
 
@@ -210,6 +210,6 @@ volumes:
     driver: local
 
 networks:
-  workout-net:
+  grindlogger-net:
     driver: bridge
 
