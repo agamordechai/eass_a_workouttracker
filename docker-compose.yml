@@ -111,7 +111,7 @@ services:
       - "8001:8001"
     environment:
       # AI configuration
-      - AI_MODEL=anthropic:claude-3-5-haiku-latest
+      - AI_MODEL=anthropic:claude-haiku-4-5
       - AI_TEMPERATURE=0.7
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 

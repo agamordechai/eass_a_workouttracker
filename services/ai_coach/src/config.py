@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 class AISettings(BaseSettings):
     """AI model configuration."""
 
-    model: str = Field(default="anthropic:claude-3-5-haiku-latest", description="AI model to use")
+    model: str = Field(default="anthropic:claude-haiku-4-5", description="AI model to use")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Model temperature")
     max_tokens: int = Field(default=1024, ge=1, description="Max tokens in response")
 
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     """Main settings aggregating all configuration."""
 
     # AI settings
-    ai_model: str = Field(default="anthropic:claude-3-5-haiku-latest", alias="AI_MODEL")
+    ai_model: str = Field(default="anthropic:claude-haiku-4-5", alias="AI_MODEL")
     ai_temperature: float = Field(default=0.7, alias="AI_TEMPERATURE")
 
     # Anthropic API key

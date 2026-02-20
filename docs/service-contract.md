@@ -303,7 +303,7 @@ All limits overridable via `RATELIMIT_*` env vars.
 ## 4. AI Coach — port 8001
 
 **Technology:** FastAPI + Pydantic AI + Anthropic Claude
-**Default model:** `anthropic:claude-3-5-haiku-latest`
+**Default model:** `anthropic:claude-haiku-4-5`
 
 The user's Anthropic API key is sent per-request via the `X-Anthropic-Key` header (set from localStorage by the frontend). Server-side key from `ANTHROPIC_API_KEY` is used as fallback for admin users only.
 
@@ -326,7 +326,7 @@ GET /health
 {
   "status": "healthy",
   "service": "ai-coach",
-  "ai_model": "anthropic:claude-3-5-haiku-latest",
+  "ai_model": "anthropic:claude-haiku-4-5",
   "workout_api_connected": true,
   "redis_connected": true
 }

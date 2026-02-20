@@ -68,7 +68,7 @@ docker-compose.yml
 | Variable | Default | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Required for AI Coach (Claude) |
-| `AI_MODEL` | `anthropic:claude-3-5-haiku-latest` | Claude model to use |
+| `AI_MODEL` | `anthropic:claude-haiku-4-5` | Claude model to use |
 | `DATABASE_URL` | SQLite (local) / Postgres (Docker) | Database connection string |
 | `API_PORT` | `8000` | API server port |
 | `APP_LOG_LEVEL` | `INFO` | Log level |
