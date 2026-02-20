@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { GlowButton } from '../ui/GlowButton';
 import { ProgressRing } from '../ui/ProgressRing';
 import { getProgressAnalysis } from '../../api/client';
+import { useSessionStorage } from '../../hooks/useSessionStorage';
 import type { ProgressAnalysis } from '../../types/aiCoach';
 
 export function AnalysisReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<ProgressAnalysis | null>(null);
+  const [analysis, setAnalysis] = useSessionStorage<ProgressAnalysis | null>('coach_analysis', null);
 
   const handleAnalyze = async () => {
     setLoading(true);

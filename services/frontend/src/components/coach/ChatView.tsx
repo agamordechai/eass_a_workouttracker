@@ -1,8 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { Send, MessageSquarePlus } from 'lucide-react';
 import { chatWithCoach } from '../../api/client';
 import { ChatMessage } from './ChatMessage';
+import { useSessionStorage } from '../../hooks/useSessionStorage';
 import type { ChatMessage as ChatMessageType } from '../../types/aiCoach';
+
+const DEFAULT_MESSAGES: ChatMessageType[] = [
+  {
+    role: 'assistant',
+    content: "Hey! I'm your AI fitness coach. Ask me anything about your routine, form tips, or training strategy. I can see your current exercises and give personalized advice.",
+  },
+];
 
 const SUGGESTIONS = [
   "What exercises should I add for balance?",
@@ -12,12 +20,7 @@ const SUGGESTIONS = [
 ];
 
 export function ChatView() {
-  const [messages, setMessages] = useState<ChatMessageType[]>([
-    {
-      role: 'assistant',
-      content: "Hey! I'm your AI fitness coach. Ask me anything about your routine, form tips, or training strategy. I can see your current exercises and give personalized advice.",
-    },
-  ]);
+  const [messages, setMessages] = useSessionStorage<ChatMessageType[]>('coach_chat_messages', DEFAULT_MESSAGES);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [includeContext, setIncludeContext] = useState(true);
@@ -107,16 +110,24 @@ export function ChatView() {
 
       {/* Input */}
       <div className="border-t border-border p-4 space-y-2">
-        <button
-          onClick={() => setIncludeContext(!includeContext)}
-          className={`text-xs px-3 py-1 rounded-full border transition-all ${
-            includeContext
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIncludeContext(!includeContext)}
+            className={`text-xs px-3 py-1 rounded-full border transition-all ${includeContext
               ? 'bg-ember/10 border-ember/30 text-ember'
               : 'bg-surface-2 border-border text-steel'
-          }`}
-        >
-          {includeContext ? 'Workout context: ON' : 'Workout context: OFF'}
-        </button>
+              }`}
+          >
+            {includeContext ? 'Workout context: ON' : 'Workout context: OFF'}
+          </button>
+          <button
+            onClick={() => setMessages(DEFAULT_MESSAGES)}
+            className="text-xs px-3 py-1 rounded-full border border-border text-steel hover:text-chalk hover:border-steel/40 transition-all flex items-center gap-1"
+          >
+            <MessageSquarePlus size={12} />
+            New Chat
+          </button>
+        </div>
         <div className="flex gap-2">
           <textarea
             value={input}

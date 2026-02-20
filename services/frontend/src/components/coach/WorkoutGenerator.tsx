@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dumbbell, CheckCircle } from 'lucide-react';
 import { GlowButton } from '../ui/GlowButton';
 import { Badge } from '../ui/Badge';
 import { getWorkoutRecommendation, appendExercisesToRoutine } from '../../api/client';
 import { MUSCLE_GROUPS, EQUIPMENT_OPTIONS, ALL_DAYS, getDayColor } from '../../lib/constants';
+import { useSessionStorage } from '../../hooks/useSessionStorage';
 import type { WorkoutRecommendation, MuscleGroup, RecommendationRequest } from '../../types/aiCoach';
 
 type ImportState = { selected: boolean; day: string };
@@ -15,10 +16,17 @@ export function WorkoutGenerator() {
   const [customFocus, setCustomFocus] = useState('');
   const [duration, setDuration] = useState(45);
   const [equipment, setEquipment] = useState<string[]>(['barbell', 'dumbbells', 'cables', 'bodyweight']);
-  const [recommendation, setRecommendation] = useState<WorkoutRecommendation | null>(null);
+  const [recommendation, setRecommendation] = useSessionStorage<WorkoutRecommendation | null>('coach_workout_recommendation', null);
   const [importStates, setImportStates] = useState<ImportState[]>([]);
   const [importing, setImporting] = useState(false);
   const [importedCount, setImportedCount] = useState<number | null>(null);
+
+  // Re-initialize importStates when recommendation is restored from sessionStorage
+  useEffect(() => {
+    if (recommendation && importStates.length === 0) {
+      setImportStates(recommendation.exercises.map(ex => ({ selected: true, day: ex.workout_day || 'A' })));
+    }
+  }, [recommendation]);
 
   const handleEquipmentToggle = (item: string) => {
     setEquipment(prev =>
@@ -132,26 +140,24 @@ export function WorkoutGenerator() {
               return (
                 <div
                   key={idx}
-                  className={`rounded-xl border transition-all ${
-                    state?.selected
-                      ? 'bg-surface-2 border-border'
-                      : 'bg-surface-2/40 border-border/40 opacity-50'
-                  }`}
+                  className={`rounded-xl border transition-all ${state?.selected
+                    ? 'bg-surface-2 border-border'
+                    : 'bg-surface-2/40 border-border/40 opacity-50'
+                    }`}
                 >
                   {/* Top row: checkbox + name */}
                   <div className="flex items-start gap-3 p-3 pb-2">
                     <button
                       type="button"
                       onClick={() => toggleSelected(idx)}
-                      className={`mt-0.5 w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${
-                        state?.selected
-                          ? 'bg-ember border-ember'
-                          : 'border-steel/40 bg-transparent'
-                      }`}
+                      className={`mt-0.5 w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${state?.selected
+                        ? 'bg-ember border-ember'
+                        : 'border-steel/40 bg-transparent'
+                        }`}
                     >
                       {state?.selected && (
                         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </button>
@@ -183,11 +189,10 @@ export function WorkoutGenerator() {
                             type="button"
                             onClick={() => setDay(idx, d)}
                             disabled={!state?.selected}
-                            className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border transition-all ${
-                              active
-                                ? `${dc.bg} ${dc.text} ${dc.border}`
-                                : 'bg-transparent border-border/40 text-steel/40 hover:border-steel/30 hover:text-steel/70'
-                            }`}
+                            className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border transition-all ${active
+                              ? `${dc.bg} ${dc.text} ${dc.border}`
+                              : 'bg-transparent border-border/40 text-steel/40 hover:border-steel/30 hover:text-steel/70'
+                              }`}
                           >
                             {d}
                           </button>
@@ -270,7 +275,7 @@ export function WorkoutGenerator() {
         </label>
         <input
           type="range"
-          min={15}
+          min={5}
           max={120}
           step={5}
           value={duration}
@@ -278,8 +283,8 @@ export function WorkoutGenerator() {
           className="w-full accent-[#F97316]"
         />
         <div className="flex justify-between text-[10px] text-steel/60 mt-1">
-          <span>15 min</span>
-          <span>120 min</span>
+          <span>5 min</span>
+          <span>2 hrs</span>
         </div>
       </div>
 
@@ -291,11 +296,10 @@ export function WorkoutGenerator() {
               key={item}
               type="button"
               onClick={() => handleEquipmentToggle(item)}
-              className={`text-xs px-3 py-2 rounded-xl font-medium transition-all border ${
-                equipment.includes(item)
-                  ? 'bg-ember/10 border-ember/30 text-ember'
-                  : 'bg-surface-2 border-border text-steel hover:border-steel/40'
-              }`}
+              className={`text-xs px-3 py-2 rounded-xl font-medium transition-all border ${equipment.includes(item)
+                ? 'bg-ember/10 border-ember/30 text-ember'
+                : 'bg-surface-2 border-border text-steel hover:border-steel/40'
+                }`}
             >
               {item}
             </button>

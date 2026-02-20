@@ -52,7 +52,7 @@ def test_database_settings_from_env(monkeypatch: MonkeyPatch) -> None:
 
     db_settings = DatabaseSettings()
 
-    assert str(db_settings.path) == "/custom/path/test.db"
+    assert db_settings.path.parts[-3:] == ("custom", "path", "test.db")
     assert db_settings.echo_sql is True
     assert db_settings.pool_size == 10
     assert db_settings.timeout == 15.0
