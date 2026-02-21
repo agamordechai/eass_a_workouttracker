@@ -1,5 +1,5 @@
 # Worker Service Dockerfile
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 # Install system dependencies
 RUN apt-get update && \
