@@ -143,8 +143,11 @@ jobs:
             echo "Logging into GitHub Container Registry..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            echo "Pulling new images..."
+            echo "Pulling pre-built images from GHCR..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+            echo "Building nginx-proxy (not in GHCR)..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml build nginx-proxy
 
             echo "Starting rolling update..."
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build --wait --wait-timeout 120

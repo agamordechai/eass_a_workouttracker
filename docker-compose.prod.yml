@@ -1,8 +1,8 @@
 # Production overrides — use with:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
+# - Pulls pre-built images from GHCR instead of building locally
 # - Removes exposed ports for internal services (api, ai-coach, worker, redis)
-# - Maps frontend to port 80
 # - Reads secrets from .env file
 
 services:
@@ -16,6 +16,7 @@ services:
     ports: !override []
 
   api:
+    image: ghcr.io/agamordechai/grindlogger-api:latest
     ports: !override []
     environment:
       - APP_ENVIRONMENT=production
@@ -42,6 +43,7 @@ services:
       - RATELIMIT_ADMIN_LIMIT=100/minute
 
   ai-coach:
+    image: ghcr.io/agamordechai/grindlogger-ai-coach:latest
     ports: !override []
     environment:
       - AI_MODEL=anthropic:claude-haiku-4-5
@@ -56,9 +58,11 @@ services:
       - PYTHONUNBUFFERED=1
 
   worker:
+    image: ghcr.io/agamordechai/grindlogger-worker:latest
     ports: !override []
 
   frontend:
+    image: ghcr.io/agamordechai/grindlogger-frontend:latest
     ports: !override []
 
   nginx-proxy:
